@@ -61,8 +61,8 @@ class MyTopo(Topo):
 
         # Create inspection server for inferencing zone
         # TODO: Change IP to correct IP
-        insp = self.addHost('insp', ip='10.0.0.30/24')
-        # insp = self.addHost('insp', ip='100.0.0.30/24')
+        #insp = self.addHost('insp', ip='10.0.0.30/24')
+        insp = self.addHost('insp', ip='100.0.0.30/24')
         
         # Connect inspection server to ids switch
         self.addLink(insp, ids)
@@ -79,13 +79,13 @@ class MyTopo(Topo):
 
         # Create inferencing servers 
         # TODO: Change IPs to correct IPs
-        llm1 = self.addHost('llm1', ip='10.0.0.40/24')
-        llm2 = self.addHost('llm2', ip='10.0.0.41/24')
-        llm3 = self.addHost('llm3', ip='10.0.0.42/24')
+        # llm1 = self.addHost('llm1', ip='10.0.0.40/24')
+        # llm2 = self.addHost('llm2', ip='10.0.0.41/24')
+        # llm3 = self.addHost('llm3', ip='10.0.0.42/24')
 
-        # llm1 = self.addHost('llm1', ip='100.0.0.40/24')
-        # llm2 = self.addHost('llm2', ip='100.0.0.41/24')
-        # llm3 = self.addHost('llm3', ip='100.0.0.42/24')
+        llm1 = self.addHost('llm1', ip='100.0.0.40/24')
+        llm2 = self.addHost('llm2', ip='100.0.0.41/24')
+        llm3 = self.addHost('llm3', ip='100.0.0.42/24')
 
         # Connect inferencing servers to switch
         self.addLink(llm1, s3)
