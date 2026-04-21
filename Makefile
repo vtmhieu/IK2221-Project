@@ -6,6 +6,8 @@ topo:
 	sudo python ./topology/topology.py
 
 app:
+	sudo echo "" > /tmp/lb1.stderr
+	sudo echo "" > /tmp/lb1.stdout
 	@echo "starting the baseController!"
 	# Copy your controller to the POX folder
 	cp applications/controller/* $(poxdir)ext/
