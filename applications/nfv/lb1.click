@@ -1,5 +1,9 @@
 // 2 variables to hold ports names
 define($PORT1 lb1-eth1, $PORT2 lb1-eth2)
+
+// TODO: Change to correct IPs
+define($llm1 10.0.0.40, $llm2 10.0.0.41, $llm3 10.0.0.42)
+
 // TODO: modify this to the internal address
 AddressInfo(load_balancer_ip 10.0.0.40)
 
@@ -36,6 +40,20 @@ merger_td2->td2
 put_annot::CheckIPHeader(14)
 fltr::IPFilter(allow dst load_balancer_ip, deny all)
 
+// pattern SADDR SPORT DADDR DPORT FOUTPUT ROUTPUT
+// 0 is towards the servers
+// 1 is towards the clients
+lb_rr::RoundRobinIPMapper(
+	- - $llm1 - 0 1,
+	- - $llm2 - 0 1,
+	- - $llm3 - 0 1
+);
+
+lb_rw::IPRewriter(
+	lb_rr,
+	drop
+);
+
 fd1-> c
 // c[0]->Print("ARP Request")->Queue->arp_rest->Queue->Print("Sending ARP Reply")->Queue->td1
 c[0]->ARPPrint("Incoming ARP Req")->arp_rest->merger_td1
@@ -43,18 +61,17 @@ c[1]->Print("ARP Reply")->merger_td2
 // c[2]->Print("IP Packet")->merger_td2
 c[2]->Print("IP Packet")->put_annot->fltr
 
-fltr[0]->Print("Allowed Packet")->merger_td2
+// Rewrite and send to the servers
+fltr[0]->Print("Allowed Packet")-> [0]lb_rw;
+lb_rw[0]->merger_td2
+
 fltr[1]->Print("Unallowed Packet")->merger_td2
 // ->Print("Got further: ")->merger_td2
 
-
-
-
-
-
 c[3]->Print("Other Packet")->Discard
 
-fd2->lf1::L2Forwarder($PORT2)->merger_td1
+fd2->lf1::L2Forwarder($PORT2)->[1]lb_rw;
+lb_rw[1]->merger_td1
 
 
 // Print something on exit
