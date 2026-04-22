@@ -27,7 +27,6 @@ fd1::FromDevice($PORT1, SNIFFER false, METHOD LINUX, PROMISC true)
 
 // Counters of throughput/packets in arrival
 ac_r_1::AverageCounter
-ac_r_2::AverageCounter
 
 // Where to send packets
 td_2::ToDevice($PORT2, METHOD LINUX)
@@ -67,6 +66,7 @@ cnt_lb_drop::Counter
 // eth stands for ethernet as exit
 // inspect HTTP with a Classifier data structure; messages arriving from the switch
 fd1
+-> ac_r_1
 -> c_uz_eth::Classifier(
 	12/0806,   // ARP
 	12/0800,   // TOCHECK: is IP version 4 fine?
@@ -140,26 +140,31 @@ search_payload[0]
 c_put_payload[0]
 -> cnt_put_cat_etc_passwd
 -> Unstrip(14)
+-> ac_w_1
 -> td_3;
 
 c_put_payload[1]
 -> cnt_put_cat_var_log
 -> Unstrip(14)
+-> ac_w_1
 -> td_3;
 
 c_put_payload[2]
 -> cnt_put_insert
 -> Unstrip(14)
+-> ac_w_1
 -> td_3;
 
 c_put_payload[3]
 -> cnt_put_update
 -> Unstrip(14)
+-> ac_w_1
 -> td_3;
 
 c_put_payload[4]
 -> cnt_put_delete
 -> Unstrip(14)
+-> ac_w_1
 -> td_3;
 
 // not malicious PUT goes to lb
@@ -173,31 +178,37 @@ c_put_payload[5]
 c_http_method[2]
 -> cnt_http_bad_method
 -> Unstrip(14)
+-> ac_w_1
 -> td_3;
 
 c_http_method[3]
 -> cnt_http_bad_method
 -> Unstrip(14)
+-> ac_w_1
 -> td_3;
 
 c_http_method[4]
 -> cnt_http_bad_method
 -> Unstrip(14)
+-> ac_w_1
 -> td_3;
 
 c_http_method[5]
 -> cnt_http_bad_method
 -> Unstrip(14)
+-> ac_w_1
 -> td_3;
 
 c_http_method[6]
 -> cnt_http_bad_method
 -> Unstrip(14)
+-> ac_w_1
 -> td_3;
 
 c_http_method[7]
 -> cnt_http_bad_method
 -> Unstrip(14)
+-> ac_w_1
 -> td_3;
 
 // tcp signaling of port 80 pass to lb
