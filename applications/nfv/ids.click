@@ -23,15 +23,13 @@ Script(print "Click forwarder on $PORT1 $PORT2")
 // From where to pick packets
 fd1::FromDevice($PORT1, SNIFFER false, METHOD LINUX, PROMISC true)
 // In case replies arrive from the lb
-fd2::FromDevice($PORT2, SNIFFER false, METHOD LINUX, PROMISC true)
-// TODO: is it necessary to include also the inspector as element that the ids receives packet from? 
+// fd2::FromDevice($PORT2, SNIFFER false, METHOD LINUX, PROMISC true)
 
 // Counters of throughput/packets in arrival
 ac_r_1::AverageCounter
 ac_r_2::AverageCounter
 
 // Where to send packets
-td_1::ToDevice($PORT1, METHOD LINUX)
 td_2::ToDevice($PORT2, METHOD LINUX)
 td_3::ToDevice($PORT3, METHOD LINUX)
 
@@ -64,9 +62,6 @@ cnt_lb_icmp::Counter
 cnt_lb_tcp::Counter
 cnt_lb_other_ip::Counter
 cnt_lb_drop::Counter
-
-// TO CHECK: inspector counters
-cnt_insp_rx_drop::Counter
 
 // uz stands for user zone -> messages arriving from the switch
 // eth stands for ethernet as exit
@@ -106,7 +101,7 @@ c_uz_ip[0]
 c_uz_ip[1]
 -> cnt_uz_http
 -> c_http_method::Classifier(
-	$HTTP_OFF/504f535420,           //POS
+	$HTTP_OFF/504f535420,           //POST
 	$HTTP_OFF/50555420,             //PUT
 	$HTTP_OFF/47455420,             //GET
 	$HTTP_OFF/4845414420,           //HEAD
@@ -174,13 +169,6 @@ c_put_payload[5]
 -> ac_w_2
 -> td_2;
 
-// if Search doesn't find \r\n\r\n, forward normally
-search_payload[1]
--> cnt_put_safe
--> Unstrip(14)
--> ac_w_2
--> td_2;
-
 // all other HTTP methods go to inspector
 c_http_method[2]
 -> cnt_http_bad_method
@@ -234,12 +222,9 @@ c_uz_ip[3]
 -> td_2;
 
 // Non-ARP/IPv4 frames are dropped
-// TO CHECK if IPv6 is enough
 c_uz_eth[2]
 -> cnt_uz_drop
 -> Discard;
-
-// TODO: check if it necessary to forward messages arriving from the load balancer and from the inspector
 
 // Print something on exit
 // DriverManager will listen on router's events
