@@ -15,7 +15,14 @@ app:
 	sudo python /opt/pox/pox.py baseController
 
 test:
-	@echo "starting test scenarios!"
+	
+	@echo "2. Starting controller in background"
+	# Run the app target in the background so it doesn't block the tests
+	$(MAKE) app & sleep 3
+	@echo "3. Running automated topology tests"
+	sudo python ./topology/topology_test.py
+	@echo "4. Shutting down and flushing reports"
+	$(MAKE) clean
 
 clean:
 	@echo "project files removed from pox directory!"
@@ -23,11 +30,11 @@ clean:
 	rm -f $(poxdir)ext/baseController.py $(poxdir)ext/click_wrapper.py $(poxdir)ext/*.click
 	# Kill controller
 	@# use the regexp trick to not match grep itself. And ignore the error if no pox running
-	kill `ps -ef | grep pox[.py] | awk '{print $$2}'` || true
+	-@ps -ef | grep '[p]ox.py' | awk '{print $$2}' | xargs -r sudo kill -9 2>/dev/null || true
 	# Clean mininet
 	sudo mn -c
 	# Kill click processes
-	sudo killall click
+	-@sudo killall -SIGTERM click 2>/dev/null || true
 
 
 
