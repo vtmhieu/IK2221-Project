@@ -33,14 +33,15 @@ merger_td2::Queue
 merger_td1->td1
 merger_td2->td2
 
-fltr::IPFilter(allow dst 10.0.0.40, deny all)
+put_annot::CheckIPHeader(14)
+fltr::IPFilter(allow dst load_balancer_ip, deny all)
 
 fd1-> c
 // c[0]->Print("ARP Request")->Queue->arp_rest->Queue->Print("Sending ARP Reply")->Queue->td1
 c[0]->ARPPrint("Incoming ARP Req")->arp_rest->merger_td1
 c[1]->Print("ARP Reply")->merger_td2
 // c[2]->Print("IP Packet")->merger_td2
-c[2]->Print("IP Packet")->fltr
+c[2]->Print("IP Packet")->put_annot->fltr
 
 fltr[0]->Print("Allowed Packet")->merger_td2
 fltr[1]->Print("Unallowed Packet")->merger_td2
