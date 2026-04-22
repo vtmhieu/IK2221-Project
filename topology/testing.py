@@ -3,12 +3,21 @@ import topology
 
 def ping(client, server, expected, count=1, wait=1):
 
-    # TODO: What if ping fails? How long does it take? Add a timeout to the command!
-    cmd = f"ping {server} -c {count}  >/dev/null 2>&1; echo $?"
-    ret = client.cmd(cmd)
-    # TODO: Here you should compare the return value "ret" with the expected value
+    server_ip = server.IP() if not isinstance(server, str) else server
+    
+    # What if ping fails? How long does it take? Add a timeout to the command!
+    cmd = f"ping {server_ip} -c {count} -W {wait}  >/dev/null 2>&1; echo $?"
+    ret = client.cmd(cmd).strip()
+    
+    # Here you should compare the return value "ret" with the expected value
     # (consider both failures
-    return True  # True means "everyhing went as expected"
+    is_success = (ret == "0")
+
+    if is_success != expected:
+        print(f"Ping failed: expected {expected}, got {is_success}")
+        return False
+
+    return True
 
 
 def curl(client, server, method="GET", payload="", port=80, expected=True):
@@ -23,13 +32,17 @@ def curl(client, server, method="GET", payload="", port=80, expected=True):
         else:
             # If it's a string it should be the IP address of the node (e.g., the load balancer)
             server_ip = server
-
-        # TODO: Specify HTTP method
-        # TODO: Pass some payload (a.k.a. data). You may have to add some escaped quotes!
+        
+        # Pass some payload (a.k.a. data). You may have to add some escaped quotes!
+        data_flag = f"-d '{payload}'" if payload else ""
+        
+        # Specify HTTP method using -X. And change server into server_ip
         # The magic string at the end reditect everything to the black hole and just print the return code
-        cmd = f"curl --connect-timeout 3 --max-time 3 -s {server}:{port} > /dev/null 2>&1; echo $?"
+        cmd = f"curl -X {method} {data_flag} --connect-timeout 3 --max-time 3 -s {server_ip}:{port} > /dev/null 2>&1; echo $?"
+        
+        # Convert the return value to an integer for comparison
         ret = client.cmd(cmd).strip()
         print(f"`{cmd}` on {client} returned {ret}")
 
-        # TODO: What value do you expect?
-        return True  # True means "everyhing went as expected"
+        is_success = (ret == "0")
+        return is_success == expected

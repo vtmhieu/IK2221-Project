@@ -60,9 +60,7 @@ class MyTopo(Topo):
         self.addLink(s2, ids)
 
         # Create inspection server for inferencing zone
-        # TODO: Change IP to correct IP
-        insp = self.addHost('insp', ip='10.0.0.30/24')
-        # insp = self.addHost('insp', ip='100.0.0.30/24')
+        insp = self.addHost('insp', ip='100.0.0.30/24')
         
         # Connect inspection server to ids switch
         self.addLink(insp, ids)
@@ -78,14 +76,10 @@ class MyTopo(Topo):
         self.addLink(lb1, s3)
 
         # Create inferencing servers 
-        # TODO: Change IPs to correct IPs
-        llm1 = self.addHost('llm1', ip='10.0.0.40/24')
-        llm2 = self.addHost('llm2', ip='10.0.0.41/24')
-        llm3 = self.addHost('llm3', ip='10.0.0.42/24')
 
-        # llm1 = self.addHost('llm1', ip='100.0.0.40/24')
-        # llm2 = self.addHost('llm2', ip='100.0.0.41/24')
-        # llm3 = self.addHost('llm3', ip='100.0.0.42/24')
+        llm1 = self.addHost('llm1', ip='100.0.0.40/24')
+        llm2 = self.addHost('llm2', ip='100.0.0.41/24')
+        llm3 = self.addHost('llm3', ip='100.0.0.42/24')
 
         # Connect inferencing servers to switch
         self.addLink(llm1, s3)
@@ -95,7 +89,21 @@ class MyTopo(Topo):
 def startup_services(net):
     # Start http services and executing commands you require on each host...
     ### COMPLETE THIS PART ###
-    pass
+    print("--- Starting Services and Configuring Routes ---")
+    
+    # 1. Start the lightweight web server on inferencing servers
+    for llm_name in ['llm1', 'llm2', 'llm3']:
+        server = net.get(llm_name)
+        # Run python http server in the background
+        server.cmd('python3 -m http.server 80 &')
+        print(f"Started HTTP server on {llm_name}")
+
+    # 2. Add default routes for hosts in the User Zone to point to the NAPT
+    h1 = net.get('h1')
+    h2 = net.get('h2')
+    h1.cmd('ip route add default via 10.0.0.1')
+    h2.cmd('ip route add default via 10.0.0.1')
+    print("Configured default routes for h1 and h2 via 10.0.0.1")
 
 
 
