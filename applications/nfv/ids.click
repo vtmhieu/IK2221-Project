@@ -23,7 +23,9 @@ Script(print "Click forwarder on $PORT1 $PORT2")
 // From where to pick packets
 fd1::FromDevice($PORT1, SNIFFER false, METHOD LINUX, PROMISC true)
 // In case replies arrive from the lb
-// fd2::FromDevice($PORT2, SNIFFER false, METHOD LINUX, PROMISC true)
+fd2::FromDevice($PORT2, SNIFFER false, METHOD LINUX, PROMISC true)
+
+fd2 -> q_ret::Queue -> td_ret::ToDevice($PORT1, METHOD LINUX)
 
 // Counters of throughput/packets in arrival
 ac_r_1::AverageCounter
@@ -42,11 +44,17 @@ ac_w_2::AverageCounter
 // uz stands for user zone -> messages arriving from the switch
 cnt_uz_arp::Counter
 cnt_uz_icmp::Counter
+cnt_uz_tcp_signal_80::Counter
 cnt_uz_tcp_signal::Counter
 cnt_uz_http::Counter
 cnt_http_post::Counter
 cnt_http_put::Counter
-cnt_http_bad_method::Counter
+cnt_http_bad_method_get::Counter
+cnt_http_bad_method_head::Counter
+cnt_http_bad_method_options::Counter
+cnt_http_bad_method_trace::Counter
+cnt_http_bad_method_delete::Counter
+cnt_http_bad_method_connect::Counter
 cnt_put_safe::Counter
 cnt_put_cat_etc_passwd::Counter
 cnt_put_cat_var_log::Counter
@@ -56,30 +64,27 @@ cnt_put_delete::Counter
 cnt_uz_other_ip::Counter
 cnt_uz_drop::Counter
 
-cnt_lb_arp::Counter
-cnt_lb_icmp::Counter
-cnt_lb_tcp::Counter
-cnt_lb_other_ip::Counter
-cnt_lb_drop::Counter
+//Queues to handle counters sending push output and average counter sending pull input
+q2 :: Queue
+q3 :: Queue
 
 // uz stands for user zone -> messages arriving from the switch
 // eth stands for ethernet as exit
 // inspect HTTP with a Classifier data structure; messages arriving from the switch
+// From where to pick packets
 fd1
 -> ac_r_1
 -> c_uz_eth::Classifier(
-	12/0806,   // ARP
-	12/0800,   // TOCHECK: is IP version 4 fine?
-	-          // everything else
+	12/0806,
+	12/0800,
+	-
 );
 
-// ARP traverses with no filtering 
 c_uz_eth[0]
 -> cnt_uz_arp
--> ac_w_2
--> td_2;
+-> Print("BRANCH: ARP -> lb1")
+-> q2 -> ac_w_2 -> td_2;
 
-// IP traffic split
 c_uz_eth[1]
 -> Strip(14)
 -> CheckIPHeader
@@ -87,155 +92,60 @@ c_uz_eth[1]
 	icmp,
 	tcp dst port 80,
 	tcp,
-	-  // Everything else
+	-
 );
 
-// ICMP is under IP and passes with no additional filtering
 c_uz_ip[0]
 -> cnt_uz_icmp
+-> Print("BRANCH: ICMP -> lb1")
 -> Unstrip(14)
--> ac_w_2
--> td_2;
+-> q2 -> ac_w_2 -> td_2;
 
-// HTTP requests are tcp to port 80 : allow only POST/PUT, send all other methods to inspector
 c_uz_ip[1]
 -> cnt_uz_http
+-> Print("BRANCH: HTTP tcp port 80")
 -> c_http_method::Classifier(
-	$HTTP_OFF/504f535420,           //POST
-	$HTTP_OFF/50555420,             //PUT
-	$HTTP_OFF/47455420,             //GET
-	$HTTP_OFF/4845414420,           //HEAD
-	$HTTP_OFF/4f5054494f4e5320,     //OPTIONS
-	$HTTP_OFF/545241434520,         //TRACE
-	$HTTP_OFF/44454c45544520,       //DELETE
-	$HTTP_OFF/434f4e4e45435420,     //CONNECT
-	-                               //other data on port 80
+	$HTTP_OFF/504f535420,
+	$HTTP_OFF/50555420,
+	$HTTP_OFF/47455420,
+	$HTTP_OFF/4845414420,
+	$HTTP_OFF/4f5054494f4e5320,
+	$HTTP_OFF/545241434520,
+	$HTTP_OFF/44454c45544520,
+	$HTTP_OFF/434f4e4e45435420,
+	-
 );
 
-// POST is allowed to pass to lb
-c_http_method[0]
--> cnt_http_post
--> Unstrip(14)
--> ac_w_2
--> td_2;
+c_http_method[0] -> cnt_http_post    -> Print("BRANCH: POST -> lb1")    -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
+c_http_method[1] -> cnt_http_put     -> Print("BRANCH: PUT inspect")    -> search_payload::Search(\r\n\r\n);
+c_http_method[2] -> cnt_http_bad_method_get     -> Print("BRANCH: GET -> insp")     -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+c_http_method[3] -> cnt_http_bad_method_head    -> Print("BRANCH: HEAD -> insp")    -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+c_http_method[4] -> cnt_http_bad_method_options -> Print("BRANCH: OPTIONS -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+c_http_method[5] -> cnt_http_bad_method_trace   -> Print("BRANCH: TRACE -> insp")   -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+c_http_method[6] -> cnt_http_bad_method_delete  -> Print("BRANCH: DELETE -> insp")  -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+c_http_method[7] -> cnt_http_bad_method_connect -> Print("BRANCH: CONNECT -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+c_http_method[8] -> cnt_uz_tcp_signal_80 -> Print("BRANCH: TCP sig port80 -> lb1") -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
 
-// PUT is inspected for command/SQL-injection signatures
-c_http_method[1]
--> cnt_http_put
--> search_payload::Search(\r\n\r\n);
-
-// Search handles the packet pointer
-// The actual payload begins exactly 4 bytes later, so we use offset 4/
 search_payload[0]
 -> c_put_payload::Classifier(
-	4/636174202f6574632f706173737764, //cat /etc/passwd
-	4/636174202f7661722f6c6f672f,     //cat /var/log/
-	4/494e53455254,                   //INSERT
-	4/555044415445,                   //UPDATE
-	4/44454c455445,                   //DELETE
-	-								//Everything else
+	4/636174202f6574632f706173737764,
+	4/636174202f7661722f6c6f672f,
+	4/494e53455254,
+	4/555044415445,
+	4/44454c455445,
+	-
 );
 
-// Suspicious payloads of a PUT sent to inspector
-c_put_payload[0]
--> cnt_put_cat_etc_passwd
--> Unstrip(14)
--> ac_w_1
--> td_3;
+c_put_payload[0] -> cnt_put_cat_etc_passwd -> Print("BRANCH: PUT cat /etc/passwd -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+c_put_payload[1] -> cnt_put_cat_var_log    -> Print("BRANCH: PUT cat /var/log -> insp")    -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+c_put_payload[2] -> cnt_put_insert         -> Print("BRANCH: PUT INSERT -> insp")          -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+c_put_payload[3] -> cnt_put_update         -> Print("BRANCH: PUT UPDATE -> insp")          -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+c_put_payload[4] -> cnt_put_delete         -> Print("BRANCH: PUT DELETE -> insp")          -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+c_put_payload[5] -> cnt_put_safe           -> Print("BRANCH: PUT safe -> lb1")             -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
 
-c_put_payload[1]
--> cnt_put_cat_var_log
--> Unstrip(14)
--> ac_w_1
--> td_3;
-
-c_put_payload[2]
--> cnt_put_insert
--> Unstrip(14)
--> ac_w_1
--> td_3;
-
-c_put_payload[3]
--> cnt_put_update
--> Unstrip(14)
--> ac_w_1
--> td_3;
-
-c_put_payload[4]
--> cnt_put_delete
--> Unstrip(14)
--> ac_w_1
--> td_3;
-
-// not malicious PUT goes to lb
-c_put_payload[5]
--> cnt_put_safe
--> Unstrip(14)
--> ac_w_2
--> td_2;
-
-// all other HTTP methods go to inspector
-c_http_method[2]
--> cnt_http_bad_method
--> Unstrip(14)
--> ac_w_1
--> td_3;
-
-c_http_method[3]
--> cnt_http_bad_method
--> Unstrip(14)
--> ac_w_1
--> td_3;
-
-c_http_method[4]
--> cnt_http_bad_method
--> Unstrip(14)
--> ac_w_1
--> td_3;
-
-c_http_method[5]
--> cnt_http_bad_method
--> Unstrip(14)
--> ac_w_1
--> td_3;
-
-c_http_method[6]
--> cnt_http_bad_method
--> Unstrip(14)
--> ac_w_1
--> td_3;
-
-c_http_method[7]
--> cnt_http_bad_method
--> Unstrip(14)
--> ac_w_1
--> td_3;
-
-// tcp signaling of port 80 pass to lb
-c_http_method[8]
--> cnt_uz_tcp_signal
--> Unstrip(14)
--> ac_w_2
--> td_2;
-
-// Non-HTTP TCP signaling must traverse transparently
-c_uz_ip[2]
--> cnt_uz_tcp_signal
--> Unstrip(14)
--> ac_w_2
--> td_2;
-
-//let other IP traffic pass
-c_uz_ip[3]
--> cnt_uz_other_ip
--> Unstrip(14)
--> ac_w_2
--> td_2;
-
-// Non-ARP/IPv4 frames are dropped
-c_uz_eth[2]
--> cnt_uz_drop
--> Discard;
+c_uz_ip[2] -> cnt_uz_tcp_signal  -> Print("BRANCH: TCP other -> lb1")   -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
+c_uz_ip[3] -> cnt_uz_other_ip    -> Print("BRANCH: other IP -> lb1")    -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
+c_uz_eth[2] -> cnt_uz_drop       -> Print("BRANCH: non-ARP/IP dropped") -> Discard;
 
 // Print something on exit
 // DriverManager will listen on router's events
