@@ -5,7 +5,7 @@ define($PORT1 ids-eth1, $PORT2 ids-eth3, $PORT3 ids-eth2)
 // Fixed offsets needed to Strip(14) messages:
 // + HTTP method starts at byte 40 (assuming no IP/TCP)
 // No IP offset as its header starts at 0
-define($HTTP_OFF 40)
+//define($HTTP_OFF 40)
 
 // Script will run as soon as the router starts
 Script(print "Click forwarder on $PORT1 $PORT2")
@@ -68,6 +68,25 @@ cnt_uz_drop::Counter
 q2 :: Queue
 q3 :: Queue
 
+// Search elements declared ahead of time for chaining
+// Searhc looks through the ENTIRE packet buffer, ignoring TCP header offsets
+
+search_post :: Search("POST ");
+search_put  :: Search("PUT ");
+search_get  :: Search("GET ");
+search_head :: Search("HEAD ");
+search_opts :: Search("OPTIONS ");
+search_trac :: Search("TRACE ");
+search_dele :: Search("DELETE ");
+search_conn :: Search("CONNECT ");
+
+// Search for special sequences
+put_check_passwd :: Search("cat /etc/passwd");
+put_check_log    :: Search("cat /var/log");
+put_check_insert :: Search("INSERT");
+put_check_update :: Search("UPDATE");
+put_check_delete :: Search("DELETE");
+
 // uz stands for user zone -> messages arriving from the switch
 // eth stands for ethernet as exit
 // inspect HTTP with a Classifier data structure; messages arriving from the switch
@@ -85,9 +104,11 @@ c_uz_eth[0]
 -> Print("BRANCH: ARP -> lb1")
 -> q2 -> ac_w_2 -> td_2;
 
+// I Reassembler to catch payloads split between multiple IP fragments
 c_uz_eth[1]
 -> Strip(14)
 -> CheckIPHeader
+-> IPReassembler()
 -> c_uz_ip::IPClassifier(
 	icmp,
 	tcp dst port 80,
@@ -101,47 +122,57 @@ c_uz_ip[0]
 -> Unstrip(14)
 -> q2 -> ac_w_2 -> td_2;
 
+
 c_uz_ip[1]
 -> cnt_uz_http
--> Print("BRANCH: HTTP tcp port 80")
--> c_http_method::Classifier(
-	$HTTP_OFF/504f535420,
-	$HTTP_OFF/50555420,
-	$HTTP_OFF/47455420,
-	$HTTP_OFF/4845414420,
-	$HTTP_OFF/4f5054494f4e5320,
-	$HTTP_OFF/545241434520,
-	$HTTP_OFF/44454c45544520,
-	$HTTP_OFF/434f4e4e45435420,
-	-
-);
+-> CheckTCPHeader
+-> search_post;
 
-c_http_method[0] -> cnt_http_post    -> Print("BRANCH: POST -> lb1")    -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
-c_http_method[1] -> cnt_http_put     -> Print("BRANCH: PUT inspect")    -> search_payload::Search(\r\n\r\n);
-c_http_method[2] -> cnt_http_bad_method_get     -> Print("BRANCH: GET -> insp")     -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-c_http_method[3] -> cnt_http_bad_method_head    -> Print("BRANCH: HEAD -> insp")    -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-c_http_method[4] -> cnt_http_bad_method_options -> Print("BRANCH: OPTIONS -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-c_http_method[5] -> cnt_http_bad_method_trace   -> Print("BRANCH: TRACE -> insp")   -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-c_http_method[6] -> cnt_http_bad_method_delete  -> Print("BRANCH: DELETE -> insp")  -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-c_http_method[7] -> cnt_http_bad_method_connect -> Print("BRANCH: CONNECT -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-c_http_method[8] -> cnt_uz_tcp_signal_80 -> Print("BRANCH: TCP sig port80 -> lb1") -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
+// Cascade of search elements
+// Port [0] triggers if the string is found. Port [1] passes the packet along if NOT found.
+search_post[0] -> cnt_http_post -> Print("BRANCH: POST -> lb1") -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
+search_post[1] -> search_put;
 
-search_payload[0]
--> c_put_payload::Classifier(
-	4/636174202f6574632f706173737764,
-	4/636174202f7661722f6c6f672f,
-	4/494e53455254,
-	4/555044415445,
-	4/44454c455445,
-	-
-);
+search_put[0]  -> cnt_http_put -> put_check_passwd;
+search_put[1]  -> search_get;
 
-c_put_payload[0] -> cnt_put_cat_etc_passwd -> Print("BRANCH: PUT cat /etc/passwd -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-c_put_payload[1] -> cnt_put_cat_var_log    -> Print("BRANCH: PUT cat /var/log -> insp")    -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-c_put_payload[2] -> cnt_put_insert         -> Print("BRANCH: PUT INSERT -> insp")          -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-c_put_payload[3] -> cnt_put_update         -> Print("BRANCH: PUT UPDATE -> insp")          -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-c_put_payload[4] -> cnt_put_delete         -> Print("BRANCH: PUT DELETE -> insp")          -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-c_put_payload[5] -> cnt_put_safe           -> Print("BRANCH: PUT safe -> lb1")             -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
+search_get[0]  -> cnt_http_bad_method_get -> Print("BRANCH: GET -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+search_get[1]  -> search_head;
+
+search_head[0] -> cnt_http_bad_method_head -> Print("BRANCH: HEAD -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+search_head[1] -> search_opts;
+
+search_opts[0] -> cnt_http_bad_method_options -> Print("BRANCH: OPTIONS -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+search_opts[1] -> search_trac;
+
+search_trac[0] -> cnt_http_bad_method_trace -> Print("BRANCH: TRACE -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+search_trac[1] -> search_dele;
+
+search_dele[0] -> cnt_http_bad_method_delete -> Print("BRANCH: DELETE -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+search_dele[1] -> search_conn;
+
+search_conn[0] -> cnt_http_bad_method_connect -> Print("BRANCH: CONNECT -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+
+// If no HTTP method is found, it's likely TCP signaling
+search_conn[1] -> cnt_uz_tcp_signal_80 -> Print("BRANCH: TCP sig port80 -> lb1") -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
+
+// cascaded payload inspection for PUT -> packets arrive here only if PUT is recognized above
+
+put_check_passwd[0] -> cnt_put_cat_etc_passwd -> Print("BRANCH: PUT cat /etc/passwd -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+put_check_passwd[1] -> put_check_log;
+
+put_check_log[0]    -> cnt_put_cat_var_log -> Print("BRANCH: PUT cat /var/log -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+put_check_log[1]    -> put_check_insert;
+
+put_check_insert[0] -> cnt_put_insert -> Print("BRANCH: PUT INSERT -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+put_check_insert[1] -> put_check_update;
+
+put_check_update[0] -> cnt_put_update -> Print("BRANCH: PUT UPDATE -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+put_check_update[1] -> put_check_delete;
+
+put_check_delete[0] -> cnt_put_delete -> Print("BRANCH: PUT DELETE -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+// If we reach the end and found none of the bad strings, the PUT is safe.
+put_check_delete[1] -> cnt_put_safe -> Print("BRANCH: PUT safe -> lb1") -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
 
 c_uz_ip[2] -> cnt_uz_tcp_signal  -> Print("BRANCH: TCP other -> lb1")   -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
 c_uz_ip[3] -> cnt_uz_other_ip    -> Print("BRANCH: other IP -> lb1")    -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
@@ -160,7 +191,12 @@ DriverManager(
 	print "Received from user (HTTP): $(cnt_uz_http.count)",
 	print "HTTP POST allowed: $(cnt_http_post.count)",
 	print "HTTP PUT observed: $(cnt_http_put.count)",
-	print "HTTP bad method to inspector: $(cnt_http_bad_method.count)",
+	print "HTTP GET bad method to inspector: $(cnt_http_bad_method_get.count)",
+	print "HTTP HEAD bad method to inspector: $(cnt_http_bad_method_head.count)",
+	print "HTTP OPTIONS bad method to inspector: $(cnt_http_bad_method_options.count)",
+	print "HTTP TRACE bad method to inspector: $(cnt_http_bad_method_trace.count)",
+	print "HTTP DELETE bad method to inspector: $(cnt_http_bad_method_delete.count)",
+	print "HTTP CONNECT bad method to inspector: $(cnt_http_bad_method_connect.count)",
 	print "PUT safe to lb1: $(cnt_put_safe.count)",
 	print "PUT cat /etc/passwd blocked: $(cnt_put_cat_etc_passwd.count)",
 	print "PUT cat /var/log/ blocked: $(cnt_put_cat_var_log.count)",
