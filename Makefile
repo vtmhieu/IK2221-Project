@@ -3,6 +3,8 @@ poxdir ?= /opt/pox/
 # Complete the makefile as you prefer!
 topo:
 	@echo "starting the topology! (i.e., running mininet)"
+	@echo "cleaning stale mininet state before startup"
+	-@sudo mn -c >/dev/null 2>&1 || true
 	sudo python ./topology/topology.py
 
 app:
@@ -15,26 +17,33 @@ app:
 	sudo python /opt/pox/pox.py baseController
 
 test:
-	
-	@echo "2. Starting controller in background"
+	@set -e; \
+	sudo -v; \
+	echo "1. Cleaning stale controller/mininet/click state"; \
+	$(MAKE) clean >/dev/null 2>&1 || true; \
+	cleanup() { $(MAKE) clean >/dev/null 2>&1 || true; }; \
+	trap cleanup EXIT INT TERM; \
+	echo "2. Starting controller in background"; \
 	# Run the app target in the background so it doesn't block the tests
-	$(MAKE) app & sleep 3
-	@echo "3. Running automated topology tests"
-	sudo python ./topology/topology_test.py
-	@echo "4. Shutting down and flushing reports"
-	$(MAKE) clean
+	$(MAKE) app >/tmp/pox-test.log 2>&1 & \
+	sleep 5; \
+	echo "3. Running automated topology tests"; \
+	sudo python ./topology/topology_test.py; \
+	echo "4. Shutting down and flushing reports"
 
 clean:
 	@echo "project files removed from pox directory!"
 	# Remove files from ext dir in pox
 	rm -f $(poxdir)ext/baseController.py $(poxdir)ext/click_wrapper.py $(poxdir)ext/*.click
 	# Kill controller
-	@# use the regexp trick to not match grep itself. And ignore the error if no pox running
-	-@ps -ef | grep '[p]ox.py' | awk '{print $$2}' | xargs -r sudo kill -9 2>/dev/null || true
+	@# use the regexp trick to not match grep itself. Try graceful stop first, then force kill if needed.
+	-@pids=$$(ps -ef | grep '[p]ox.py' | awk '{print $$2}'); \
+	if [ -n "$$pids" ]; then sudo kill -TERM $$pids 2>/dev/null || true; fi
+	-@sleep 1
+	-@pids=$$(ps -ef | grep '[p]ox.py' | awk '{print $$2}'); \
+	if [ -n "$$pids" ]; then sudo kill -KILL $$pids 2>/dev/null || true; fi
 	# Clean mininet
 	sudo mn -c
 	# Kill click processes
 	-@sudo killall -SIGTERM click 2>/dev/null || true
-
-
 
