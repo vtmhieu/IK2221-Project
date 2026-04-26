@@ -3,6 +3,7 @@ from mininet.topo import Topo
 from mininet.net import Mininet
 from mininet.node import Switch
 from mininet.cli import CLI
+from mininet.clean import cleanup
 from mininet.node import RemoteController, OVSController, Controller
 from mininet.node import OVSSwitch
 import subprocess
@@ -116,6 +117,9 @@ def startup_services(net):
 # topos = {'mytopo': (lambda: MyTopo())}
 
 if __name__ == "__main__":
+
+    # safety cleanup: remove stale mininet links/nodes before creating a new topology
+    cleanup()
 
     # Create topology
     topo = MyTopo()
