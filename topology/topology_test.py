@@ -90,6 +90,9 @@ def run_tests(net):
     print("Testing HTTP PUT with safe payload from h1 to llm1 (through IDS path):")
     testing.curl(h1, http_target, method="PUT", payload="safe=data")
 
+    print("Testing HTTP PUT with unsafe INSERT from h1 to llm1 (through IDS path):")
+    testing.curl(h1, http_target, method="PUT", payload="INSERT")
+
 
 if __name__ == "__main__":
 

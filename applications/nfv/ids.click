@@ -125,7 +125,6 @@ c_uz_ip[0]
 
 c_uz_ip[1]
 -> cnt_uz_http
--> CheckTCPHeader
 -> search_post;
 
 // Cascade of search elements
