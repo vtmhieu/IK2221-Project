@@ -6,8 +6,8 @@ from mininet.cli import CLI
 from mininet.node import RemoteController
 from mininet.node import OVSSwitch
 from mininet.clean import cleanup
-from topology import *
-import testing
+from topology.topology import *
+import topology.testing as testing
 import subprocess
 import time
 
@@ -101,9 +101,6 @@ if __name__ == "__main__":
 
     # Create topology
     topo = MyTopo()
-
-    # Start each run with fresh IDS logs.
-    _reset_logs(["ids.report", "ids.err"])
 
     ctrl = RemoteController("c0", ip="127.0.0.1", port=6633)
 
