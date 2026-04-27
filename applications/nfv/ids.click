@@ -5,9 +5,8 @@ Script(print "Click forwarder on $PORT1 $PORT2")
 fd1::FromDevice($PORT1, SNIFFER false, METHOD LINUX, PROMISC true)
 fd2::FromDevice($PORT2, SNIFFER false, METHOD LINUX, PROMISC true)
 
-fd2 -> q_ret::Queue -> td_ret::ToDevice($PORT1, METHOD LINUX)
-
 ac_r_1::AverageCounter
+ac_r_2::AverageCounter
 
 td_2::ToDevice($PORT2, METHOD LINUX)
 td_3::ToDevice($PORT3, METHOD LINUX)
@@ -54,6 +53,8 @@ put_check_log    :: Search("cat /var/log")
 put_check_insert :: Search("INSERT")
 put_check_update :: Search("UPDATE")
 put_check_delete :: Search("DELETE")
+
+fd2 -> ac_r_2 -> q_ret::Queue -> td_ret::ToDevice($PORT1, METHOD LINUX)
 
 fd1
 -> ac_r_1
@@ -227,12 +228,25 @@ c_uz_eth[2]
 -> Print("IDS ---  BRANCH: non-ARP/IP dropped", TIMESTAMP true)
 -> Discard;
 
+
 DriverManager(
 	print "Router starting",
 	pause,
+	print "",
+	print "=================Aggregate Statistics===============",
+	print "",
+	print "Total received user packets: $(ac_r_1.count)",
+	print "Total user packets dropped by IDS: $(cnt_uz_drop.count)",
+	print "Total received load balancer response packets: $(ac_r_2.count)",
+	print "",
+	print "Input Rate (pps): $(ac_r_1.rate)",
+	print "Output Rate (pps): $(ac_r_2.rate)",
+	print "",
+	print "=================Individual Request Type Statistics==============",
 	print "Received from user (ARP): $(cnt_uz_arp.count)",
 	print "Received from user (ICMP): $(cnt_uz_icmp.count)",
 	print "Received from user (TCP signaling): $(cnt_uz_tcp_signal.count)",
+	print "Received from user (TCP signaling on port 80): $(cnt_uz_tcp_signal_80.count)", 
 	print "Received from user (HTTP): $(cnt_uz_http.count)",
 	print "HTTP POST allowed: $(cnt_http_post.count)",
 	print "HTTP PUT observed: $(cnt_http_put.count)",
@@ -242,10 +256,11 @@ DriverManager(
 	print "HTTP TRACE bad method to inspector: $(cnt_http_bad_method_trace.count)",
 	print "HTTP DELETE bad method to inspector: $(cnt_http_bad_method_delete.count)",
 	print "HTTP CONNECT bad method to inspector: $(cnt_http_bad_method_connect.count)",
-	print "PUT safe to lb1: $(cnt_put_safe.count)",
-	print "PUT cat /etc/passwd blocked: $(cnt_put_cat_etc_passwd.count)",
-	print "PUT cat /var/log/ blocked: $(cnt_put_cat_var_log.count)",
-	print "PUT INSERT blocked: $(cnt_put_insert.count)",
-	print "PUT UPDATE blocked: $(cnt_put_update.count)",
+	print "Other IP traffic: $(cnt_uz_other_ip.count)",
+	print "PUT safe to lb1: $(cnt_put_safe.count)", 
+	print "PUT cat /etc/passwd blocked: $(cnt_put_cat_etc_passwd.count)", 
+	print "PUT cat /var/log/ blocked: $(cnt_put_cat_var_log.count)", 
+	print "PUT INSERT blocked: $(cnt_put_insert.count)", 
+	print "PUT UPDATE blocked: $(cnt_put_update.count)", 
 	print "PUT DELETE blocked: $(cnt_put_delete.count)",
 )
