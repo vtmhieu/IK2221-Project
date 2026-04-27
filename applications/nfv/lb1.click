@@ -62,24 +62,24 @@ lb_rw::IPRewriter(
 // Client-facing port
 fd1 -> c_in
 c_in[0] -> ARPPrint("LB1: Incoming ARP Req", TIMESTAMP true) -> arp_rest1 -> to_clients
-c_in[1] -> Print("LB1: ARP Reply", TIMESTAMP true) -> [1]arpq_clients
-c_in[2] -> Print("LB1: IP Packet", TIMESTAMP true) -> Strip(14) -> check_from_clients -> fltr
+c_in[1] -> ARPPrint("LB1: ARP Reply", TIMESTAMP true) -> [1]arpq_clients
+c_in[2] -> Strip(14) -> check_from_clients -> IPPrint("LB1: client -> VIP", TIMESTAMP true) -> fltr
 c_in[3] -> Print("LB1: Other Packet", TIMESTAMP true) -> Discard
 
-fltr[0] -> Print("LB1: Allowed Packet", TIMESTAMP true) -> [0]lb_rw;
+fltr[0] -> IPPrint("LB1: allowed to rewrite", TIMESTAMP true) -> [0]lb_rw;
 fltr[1] -> Print("LB1: Unallowed Packet", TIMESTAMP true) -> Discard
 
-lb_rw[0] -> Print("LB1: Rewritten Packet", TIMESTAMP true) -> GetIPAddress(16) -> arpq_servers
+lb_rw[0] -> IPPrint("LB1: rewritten -> backend", TIMESTAMP true) -> GetIPAddress(16) -> arpq_servers
 
 
 // Server-facing port
 fd2 -> c_out
 c_out[0] -> ARPPrint("LB1: Incoming ARP Req (servers)", TIMESTAMP true) -> arp_rest2 -> to_servers
-c_out[1] -> Print("LB1: ARP Reply (servers)", TIMESTAMP true) -> [1]arpq_servers
-c_out[2] -> Print("LB1: IP Reply Packet", TIMESTAMP true) -> Strip(14) -> check_from_servers -> [1]lb_rw;
+c_out[1] -> ARPPrint("LB1: ARP Reply (servers)", TIMESTAMP true) -> [1]arpq_servers
+c_out[2] -> Strip(14) -> check_from_servers -> IPPrint("LB1: backend -> VIP", TIMESTAMP true) -> [1]lb_rw;
 c_out[3] -> Print("LB1: Other Packet (servers)", TIMESTAMP true) -> Discard
 
-lb_rw[1] -> Print("LB1: Rewritten Packet", TIMESTAMP true) -> GetIPAddress(16) -> arpq_clients
+lb_rw[1] -> IPPrint("LB1: rewritten -> client", TIMESTAMP true) -> GetIPAddress(16) -> arpq_clients
 
 
 // Lifecycle
