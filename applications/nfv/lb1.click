@@ -3,7 +3,7 @@ define($PORT1 lb1-eth1, $PORT2 lb1-eth2)
 
 // Addresses
 // TODO: Change to correct IPs.
-define($VIP 10.0.0.43, $llm1 10.0.0.40, $llm2 10.0.0.41, $llm3 10.0.0.42)
+define($VIP 10.0.0.43, $LB_MAC 11:11:11:11:11:11, $llm1 10.0.0.40, $llm2 10.0.0.41, $llm3 10.0.0.42)
 
 // TODO: Modify this to the internal address.
 AddressInfo(load_balancer_ip $VIP)
@@ -24,18 +24,24 @@ to_servers::Queue
 to_clients -> td1
 to_servers -> td2
 
+arpq_clients::ARPQuerier($VIP, $LB_MAC)
+arpq_servers::ARPQuerier($VIP, $LB_MAC)
+
+arpq_clients -> to_clients
+arpq_servers -> to_servers
+
 
 // Packet classifiers
 c_in::Classifier(12/0806 20/0001, 12/0806 20/0002, 12/0800, -)
 c_out::Classifier(12/0806 20/0001, 12/0806 20/0002, 12/0800, -)
 
-check_from_clients::CheckIPHeader(14)
-check_from_servers::CheckIPHeader(14)
+check_from_clients::CheckIPHeader
+check_from_servers::CheckIPHeader
 fltr::IPFilter(allow dst load_balancer_ip, deny all)
 
 // TODO: Modify this to the internal address.
-arp_rest1::ARPResponder($VIP 11:11:11:11:11:11)
-arp_rest2::ARPResponder($VIP 11:11:11:11:11:11)
+arp_rest1::ARPResponder($VIP $LB_MAC)
+arp_rest2::ARPResponder($VIP $LB_MAC)
 
 
 // Load-balancing rewrite
@@ -56,24 +62,24 @@ lb_rw::IPRewriter(
 // Client-facing port
 fd1 -> c_in
 c_in[0] -> ARPPrint("LB1: Incoming ARP Req", TIMESTAMP true) -> arp_rest1 -> to_clients
-c_in[1] -> Print("LB1: ARP Reply", TIMESTAMP true) -> Discard
-c_in[2] -> Print("LB1: IP Packet", TIMESTAMP true) -> check_from_clients -> fltr
+c_in[1] -> Print("LB1: ARP Reply", TIMESTAMP true) -> [1]arpq_clients
+c_in[2] -> Print("LB1: IP Packet", TIMESTAMP true) -> Strip(14) -> check_from_clients -> fltr
 c_in[3] -> Print("LB1: Other Packet", TIMESTAMP true) -> Discard
 
 fltr[0] -> Print("LB1: Allowed Packet", TIMESTAMP true) -> [0]lb_rw;
 fltr[1] -> Print("LB1: Unallowed Packet", TIMESTAMP true) -> Discard
 
-lb_rw[0] -> Print("LB1: Rewritten Packet", TIMESTAMP true) -> to_servers
+lb_rw[0] -> Print("LB1: Rewritten Packet", TIMESTAMP true) -> GetIPAddress(16) -> arpq_servers
 
 
 // Server-facing port
 fd2 -> c_out
 c_out[0] -> ARPPrint("LB1: Incoming ARP Req (servers)", TIMESTAMP true) -> arp_rest2 -> to_servers
-c_out[1] -> Print("LB1: ARP Reply (servers)", TIMESTAMP true) -> Discard
-c_out[2] -> Print("LB1: IP Reply Packet", TIMESTAMP true) -> check_from_servers -> [1]lb_rw;
+c_out[1] -> Print("LB1: ARP Reply (servers)", TIMESTAMP true) -> [1]arpq_servers
+c_out[2] -> Print("LB1: IP Reply Packet", TIMESTAMP true) -> Strip(14) -> check_from_servers -> [1]lb_rw;
 c_out[3] -> Print("LB1: Other Packet (servers)", TIMESTAMP true) -> Discard
 
-lb_rw[1] -> Print("LB1: Rewritten Packet", TIMESTAMP true) -> to_clients
+lb_rw[1] -> Print("LB1: Rewritten Packet", TIMESTAMP true) -> GetIPAddress(16) -> arpq_clients
 
 
 // Lifecycle
