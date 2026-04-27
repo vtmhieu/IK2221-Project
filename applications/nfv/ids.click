@@ -1,47 +1,20 @@
-// 3 variables to hold port names
-// eth1 <-> sw2 (switch as input), eth3 <-> lb1 (lb as output), eth2 <-> inspector for particular messages
 define($PORT1 ids-eth1, $PORT2 ids-eth3, $PORT3 ids-eth2)
 
-// Fixed offsets needed to Strip(14) messages:
-// + HTTP method starts at byte 40 (assuming no IP/TCP)
-// No IP offset as its header starts at 0
-//define($HTTP_OFF 40)
-
-// Script will run as soon as the router starts
 Script(print "Click forwarder on $PORT1 $PORT2")
 
-// Comment and decomment; it was purely a simple debug element 
-// $port is a parameter used just to print
-//elementclass L2Forwarder {$port|
-//	input
-//	->cnt::Counter
-//        ->Print
-//	->Queue
-//	->output
-//}
-
-// From where to pick packets
 fd1::FromDevice($PORT1, SNIFFER false, METHOD LINUX, PROMISC true)
-// In case replies arrive from the lb
 fd2::FromDevice($PORT2, SNIFFER false, METHOD LINUX, PROMISC true)
 
 fd2 -> q_ret::Queue -> td_ret::ToDevice($PORT1, METHOD LINUX)
 
-// Counters of throughput/packets in arrival
 ac_r_1::AverageCounter
 
-// Where to send packets
 td_2::ToDevice($PORT2, METHOD LINUX)
 td_3::ToDevice($PORT3, METHOD LINUX)
 
-// Counters in exit (throughput/packets)
-// w1 for the inspector
-// w2 for the load balancer
 ac_w_1::AverageCounter
 ac_w_2::AverageCounter
 
-// Counters for reporting
-// uz stands for user zone -> messages arriving from the switch
 cnt_uz_arp::Counter
 cnt_uz_icmp::Counter
 cnt_uz_tcp_signal_80::Counter
@@ -64,33 +37,24 @@ cnt_put_delete::Counter
 cnt_uz_other_ip::Counter
 cnt_uz_drop::Counter
 
-//Queues to handle counters sending push output and average counter sending pull input
 q2 :: Queue
 q3 :: Queue
 
-// Search elements declared ahead of time for chaining
-// Searhc looks through the ENTIRE packet buffer, ignoring TCP header offsets
+search_post :: Search("POST ")
+search_put  :: Search("PUT ")
+search_get  :: Search("GET ")
+search_head :: Search("HEAD ")
+search_opts :: Search("OPTIONS ")
+search_trac :: Search("TRACE ")
+search_dele :: Search("DELETE ")
+search_conn :: Search("CONNECT ")
 
-search_post :: Search("POST ");
-search_put  :: Search("PUT ");
-search_get  :: Search("GET ");
-search_head :: Search("HEAD ");
-search_opts :: Search("OPTIONS ");
-search_trac :: Search("TRACE ");
-search_dele :: Search("DELETE ");
-search_conn :: Search("CONNECT ");
+put_check_passwd :: Search("cat /etc/passwd")
+put_check_log    :: Search("cat /var/log")
+put_check_insert :: Search("INSERT")
+put_check_update :: Search("UPDATE")
+put_check_delete :: Search("DELETE")
 
-// Search for special sequences
-put_check_passwd :: Search("cat /etc/passwd");
-put_check_log    :: Search("cat /var/log");
-put_check_insert :: Search("INSERT");
-put_check_update :: Search("UPDATE");
-put_check_delete :: Search("DELETE");
-
-// uz stands for user zone -> messages arriving from the switch
-// eth stands for ethernet as exit
-// inspect HTTP with a Classifier data structure; messages arriving from the switch
-// From where to pick packets
 fd1
 -> ac_r_1
 -> c_uz_eth::Classifier(
@@ -101,10 +65,9 @@ fd1
 
 c_uz_eth[0]
 -> cnt_uz_arp
--> Print("BRANCH: ARP -> lb1")
+-> Print("IDS ---  BRANCH: ARP -> lb1", TIMESTAMP true)
 -> q2 -> ac_w_2 -> td_2;
 
-// I Reassembler to catch payloads split between multiple IP fragments
 c_uz_eth[1]
 -> Strip(14)
 -> CheckIPHeader
@@ -118,72 +81,155 @@ c_uz_eth[1]
 
 c_uz_ip[0]
 -> cnt_uz_icmp
--> Print("BRANCH: ICMP -> lb1")
+-> Print("IDS ---  BRANCH: ICMP -> lb1", TIMESTAMP true)
 -> Unstrip(14)
 -> q2 -> ac_w_2 -> td_2;
-
 
 c_uz_ip[1]
 -> cnt_uz_http
 -> search_post;
 
-// Cascade of search elements
-// Port [0] triggers if the string is found. Port [1] passes the packet along if NOT found.
-search_post[0] -> cnt_http_post -> Print("BRANCH: POST -> lb1") -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
-search_post[1] -> search_put;
+search_post[0]
+-> cnt_http_post
+-> Print("IDS ---  BRANCH: POST -> lb1", TIMESTAMP true)
+-> Unstrip(14)
+-> q2 -> ac_w_2 -> td_2;
 
-search_put[0]  -> cnt_http_put -> put_check_passwd;
-search_put[1]  -> search_get;
+search_post[1]
+-> search_put;
 
-search_get[0]  -> cnt_http_bad_method_get -> Print("BRANCH: GET -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-search_get[1]  -> search_head;
+search_put[0]
+-> cnt_http_put
+-> put_check_passwd;
 
-search_head[0] -> cnt_http_bad_method_head -> Print("BRANCH: HEAD -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-search_head[1] -> search_opts;
+search_put[1]
+-> search_get;
 
-search_opts[0] -> cnt_http_bad_method_options -> Print("BRANCH: OPTIONS -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-search_opts[1] -> search_trac;
+search_get[0]
+-> cnt_http_bad_method_get
+-> Print("IDS ---  BRANCH: GET -> insp", TIMESTAMP true)
+-> Unstrip(14)
+-> q3 -> ac_w_1 -> td_3;
 
-search_trac[0] -> cnt_http_bad_method_trace -> Print("BRANCH: TRACE -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-search_trac[1] -> search_dele;
+search_get[1]
+-> search_head;
 
-search_dele[0] -> cnt_http_bad_method_delete -> Print("BRANCH: DELETE -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-search_dele[1] -> search_conn;
+search_head[0]
+-> cnt_http_bad_method_head
+-> Print("IDS ---  BRANCH: HEAD -> insp", TIMESTAMP true)
+-> Unstrip(14)
+-> q3 -> ac_w_1 -> td_3;
 
-search_conn[0] -> cnt_http_bad_method_connect -> Print("BRANCH: CONNECT -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+search_head[1]
+-> search_opts;
 
-// If no HTTP method is found, it's likely TCP signaling
-search_conn[1] -> cnt_uz_tcp_signal_80 -> Print("BRANCH: TCP sig port80 -> lb1") -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
+search_opts[0]
+-> cnt_http_bad_method_options
+-> Print("IDS ---  BRANCH: OPTIONS -> insp", TIMESTAMP true)
+-> Unstrip(14)
+-> q3 -> ac_w_1 -> td_3;
 
-// cascaded payload inspection for PUT -> packets arrive here only if PUT is recognized above
+search_opts[1]
+-> search_trac;
 
-put_check_passwd[0] -> cnt_put_cat_etc_passwd -> Print("BRANCH: PUT cat /etc/passwd -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-put_check_passwd[1] -> put_check_log;
+search_trac[0]
+-> cnt_http_bad_method_trace
+-> Print("IDS ---  BRANCH: TRACE -> insp", TIMESTAMP true)
+-> Unstrip(14)
+-> q3 -> ac_w_1 -> td_3;
 
-put_check_log[0]    -> cnt_put_cat_var_log -> Print("BRANCH: PUT cat /var/log -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-put_check_log[1]    -> put_check_insert;
+search_trac[1]
+-> search_dele;
 
-put_check_insert[0] -> cnt_put_insert -> Print("BRANCH: PUT INSERT -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-put_check_insert[1] -> put_check_update;
+search_dele[0]
+-> cnt_http_bad_method_delete
+-> Print("IDS ---  BRANCH: DELETE -> insp", TIMESTAMP true)
+-> Unstrip(14)
+-> q3 -> ac_w_1 -> td_3;
 
-put_check_update[0] -> cnt_put_update -> Print("BRANCH: PUT UPDATE -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-put_check_update[1] -> put_check_delete;
+search_dele[1]
+-> search_conn;
 
-put_check_delete[0] -> cnt_put_delete -> Print("BRANCH: PUT DELETE -> insp") -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-// If we reach the end and found none of the bad strings, the PUT is safe.
-put_check_delete[1] -> cnt_put_safe -> Print("BRANCH: PUT safe -> lb1") -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
+search_conn[0]
+-> cnt_http_bad_method_connect
+-> Print("IDS ---  BRANCH: CONNECT -> insp", TIMESTAMP true)
+-> Unstrip(14)
+-> q3 -> ac_w_1 -> td_3;
 
-c_uz_ip[2] -> cnt_uz_tcp_signal  -> Print("BRANCH: TCP other -> lb1")   -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
-c_uz_ip[3] -> cnt_uz_other_ip    -> Print("BRANCH: other IP -> lb1")    -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
-c_uz_eth[2] -> cnt_uz_drop       -> Print("BRANCH: non-ARP/IP dropped") -> Discard;
+search_conn[1]
+-> cnt_uz_tcp_signal_80
+-> Print("IDS ---  BRANCH: TCP sig port80 -> lb1", TIMESTAMP true)
+-> Unstrip(14)
+-> q2 -> ac_w_2 -> td_2;
 
-// Print something on exit
-// DriverManager will listen on router's events
-// The pause instruction will wait until the process terminates
-// Then the prints will run an Click will exit
+put_check_passwd[0]
+-> cnt_put_cat_etc_passwd
+-> Print("IDS ---  BRANCH: PUT cat /etc/passwd -> insp", TIMESTAMP true)
+-> Unstrip(14)
+-> q3 -> ac_w_1 -> td_3;
+
+put_check_passwd[1]
+-> put_check_log;
+
+put_check_log[0]
+-> cnt_put_cat_var_log
+-> Print("IDS ---  BRANCH: PUT cat /var/log -> insp", TIMESTAMP true)
+-> Unstrip(14)
+-> q3 -> ac_w_1 -> td_3;
+
+put_check_log[1]
+-> put_check_insert;
+
+put_check_insert[0]
+-> cnt_put_insert
+-> Print("IDS ---  BRANCH: PUT INSERT -> insp", TIMESTAMP true)
+-> Unstrip(14)
+-> q3 -> ac_w_1 -> td_3;
+
+put_check_insert[1]
+-> put_check_update;
+
+put_check_update[0]
+-> cnt_put_update
+-> Print("IDS ---  BRANCH: PUT UPDATE -> insp", TIMESTAMP true)
+-> Unstrip(14)
+-> q3 -> ac_w_1 -> td_3;
+
+put_check_update[1]
+-> put_check_delete;
+
+put_check_delete[0]
+-> cnt_put_delete
+-> Print("IDS ---  BRANCH: PUT DELETE -> insp", TIMESTAMP true)
+-> Unstrip(14)
+-> q3 -> ac_w_1 -> td_3;
+
+put_check_delete[1]
+-> cnt_put_safe
+-> Print("IDS ---  BRANCH: PUT safe -> lb1", TIMESTAMP true)
+-> Unstrip(14)
+-> q2 -> ac_w_2 -> td_2;
+
+c_uz_ip[2]
+-> cnt_uz_tcp_signal
+-> Print("IDS ---  BRANCH: TCP other -> lb1", TIMESTAMP true)
+-> Unstrip(14)
+-> q2 -> ac_w_2 -> td_2;
+
+c_uz_ip[3]
+-> cnt_uz_other_ip
+-> Print("IDS ---  BRANCH: other IP -> lb1", TIMESTAMP true)
+-> Unstrip(14)
+-> q2 -> ac_w_2 -> td_2;
+
+c_uz_eth[2]
+-> cnt_uz_drop
+-> Print("IDS ---  BRANCH: non-ARP/IP dropped", TIMESTAMP true)
+-> Discard;
+
 DriverManager(
-        print "Router starting",
-        pause,
+	print "Router starting",
+	pause,
 	print "Received from user (ARP): $(cnt_uz_arp.count)",
 	print "Received from user (ICMP): $(cnt_uz_icmp.count)",
 	print "Received from user (TCP signaling): $(cnt_uz_tcp_signal.count)",
