@@ -22,7 +22,7 @@ def start_click(configuration, parameters, stdout="/tmp/click.out", stderr="/tmp
   # Maybe you want them to a file? tee and > can be your friends!
   redirect = ""
 
-  cmd = f"sudo click {configuration} {parameters} {redirect} >{stdout} 2>>{stderr} &"
+  cmd = f"sudo click {configuration} {parameters} {redirect} >{stdout} 2>{stderr} &"
   print(f"Launching click with command {cmd}")
   p = subprocess.Popen(cmd, shell=True)
   print(f"Click launched with PID {p.pid}")
