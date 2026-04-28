@@ -28,9 +28,87 @@ def _graceful_stop_click():
     time.sleep(2)
 
 
-def run_tests(net):
-    # You can automate some tests here
+def _read_ids_report(path):
+    stats = {}
+    with open(path, "r", encoding="utf-8") as report:
+        for line in report:
+            if ":" not in line:
+                continue
+            label, value = line.split(":", 1)
+            label = label.strip()
+            value = value.strip()
+            if not value:
+                continue
+            try:
+                stats[label] = int(value)
+            except ValueError:
+                continue
+    return stats
 
+
+def _check_ids_report(path):
+    stats = _read_ids_report(path)
+
+    total_user = stats.get("Total received user packets", 0)
+    sent_inspector = stats.get("Total packets sent to insepctor", 0)
+    sent_lb = stats.get("Total packets sent to LB", 0)
+
+    received_arp = stats.get("Received from user (ARP)", 0)
+    received_icmp = stats.get("Received from user (ICMP)", 0)
+    received_http = stats.get("Received from user (HTTP)", 0)
+
+    tcp_80 = stats.get("Received from user (TCP signaling on port 80)", 0)
+    http_put = stats.get("HTTP PUT observed", 0)
+    http_get_bad = stats.get("HTTP GET bad method to inspector", 0)
+    http_head_bad = stats.get("HTTP HEAD bad method to inspector", 0)
+    http_options_bad = stats.get("HTTP OPTIONS bad method to inspector", 0)
+    http_trace_bad = stats.get("HTTP TRACE bad method to inspector", 0)
+    http_delete_bad = stats.get("HTTP DELETE bad method to inspector", 0)
+    http_connect_bad = stats.get("HTTP CONNECT bad method to inspector", 0)
+
+    put_safe = stats.get("PUT safe to lb1", 0)
+    put_passwd = stats.get("PUT cat /etc/passwd blocked", 0)
+    put_varlog = stats.get("PUT cat /var/log/ blocked", 0)
+    put_insert = stats.get("PUT INSERT blocked", 0)
+    put_update = stats.get("PUT UPDATE blocked", 0)
+    put_delete = stats.get("PUT DELETE blocked", 0)
+
+    checks = [
+        (
+            "sent_inspector + sent_lb == total_received_user",
+            (sent_inspector + sent_lb) == total_user,
+        ),
+        (
+            "arp + icmp + http == total_received_user",
+            (received_arp + received_icmp + received_http) == total_user,
+        ),
+        (
+            "http_put + bad_methods + tcp_80 == received_http",
+            (
+                http_put
+                + http_get_bad
+                + http_head_bad
+                + http_options_bad
+                + http_trace_bad
+                + http_delete_bad
+                + http_connect_bad
+                + tcp_80
+            )
+            == received_http,
+        ),
+        (
+            "http_put == sum(put breakdown)",
+            (put_safe + put_passwd + put_varlog + put_insert + put_update + put_delete)
+            == http_put,
+        ),
+    ]
+
+    print("--- IDS report consistency checks ---")
+    for label, result in checks:
+        print(f"{label}: {result}")
+
+
+def run_tests(net):
     h1 = net.get('h1')
     h2 = net.get('h2')
     s1 = net.get('s1')
@@ -40,68 +118,50 @@ def run_tests(net):
     llm1 = net.get('llm1')
     http_target = llm1
 
+    sequence = [
+        ("curl", "GET", None),
+        ("curl", "POST", "test=data"),
+        ("ping", h1, h2),
+        ("curl", "PUT", "safe=data"),
+        ("curl", "DELETE", None),
+        ("curl", "OPTIONS", None),
+        ("ping", h1, napt),
+        ("curl", "TRACE", None),
+        ("curl", "CONNECT", None),
+        ("curl", "PUT", "cat /etc/passwd"),
+        ("curl", "POST", "alpha=1&beta=2"),
+        ("curl", "PUT", "INSERT"),
+        ("ping", h1, ids),
+        ("curl", "PUT", "UPDATE"),
+        ("curl", "PUT", "DELETE"),
+        ("curl", "PUT", "cat /var/log/"),
+        ("curl", "GET", None),
+        ("curl", "POST", "name=test"),
+        ("ping", h1, llm1),
+        ("curl", "PUT", "payload=xyz"),
+    ]
 
-    # Test 1: Ping the Load balancer Virtual IP
-    print("Testing ping from h1 to h2:")
-    testing.ping(h1, h2, expected=True)
-    
-    print("Testing ping from h1 to napt:")
-    testing.ping(h1, napt, expected=True)
-    
-    
-    print("Testing ping from h1 to ids:")
-    testing.ping(h1, ids, expected=True)
-    
-    print("Testing ping from h1 to llm1:")
-    testing.ping(h1, llm1, expected=True)
+    print("Running 2-minute repeating sequence of curls/pings...")
+    start_time = time.monotonic()
+    index = 0
+    while time.monotonic() - start_time < 120:
+        action = sequence[index]
+        if action[0] == "ping":
+            src, dst = action[1], action[2]
+            print(f"Ping {src.name} -> {dst.name}:")
+            testing.ping(src, dst, expected=True)
+        else:
+            method, payload = action[1], action[2]
+            if payload is None:
+                print(f"Curl {method} {http_target.name}:")
+                testing.curl(h1, http_target, method=method)
+            else:
+                print(f"Curl {method} {http_target.name} payload={payload}:")
+                testing.curl(h1, http_target, method=method, payload=payload)
 
-    # Test 2: Test HTTP POST request
-    print("Testing HTTP POST request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="POST", payload="test=data")
+        index = (index + 1) % len(sequence)
 
-    # Test 3: Test HTTP PUT request
-    print("Testing HTTP PUT request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="test=data")
-
-    # Test 4: Test HTTP GET request
-    print("Testing HTTP GET request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="GET")
-
-    # Test 5: Test HTTP DELETE request
-    print("Testing HTTP DELETE request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="DELETE")
-
-    # Test 6: Test HTTP OPTIONS request
-    print("Testing HTTP OPTIONS request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="OPTIONS")
-
-    # Test 7: Test HTTP TRACE request
-    print("Testing HTTP TRACE request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="TRACE")
-
-    # Test 8: Test HTTP CONNECT request
-    print("Testing HTTP CONNECT request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="CONNECT")
-
-    # Test 9: Test HTTP PUT with malicious payload
-    print("Testing HTTP PUT with malicious payload from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="cat /etc/passwd")
-
-    # Test 10: Test HTTP PUT with safe payload
-    print("Testing HTTP PUT with safe payload from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="safe=data")
-
-    print("Testing HTTP PUT with unsafe INSERT from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="INSERT")
-
-    print("Testing HTTP PUT with unsafe UPDATE from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="UPDATE")
-
-    print("Testing HTTP PUT with unsafe DELETE from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="DELETE")
-
-    print("Testing HTTP PUT with unsafe payload from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="cat /var/log/")
+    _check_ids_report("/home/ik2221/IK2221-Project/results/ids.report")
 
 
 if __name__ == "__main__":
