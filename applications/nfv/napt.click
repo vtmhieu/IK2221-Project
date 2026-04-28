@@ -74,12 +74,12 @@ aq_out :: ARPQuerier(OUT_ADDR)
 // NAT Logic
 iprw :: IPRewriter(
   pattern OUT_ADDR 1024-65535 - - 0 1,
-  pattern IN_ADDR  - - - 1 0
+  //pattern IN_ADDR  - - - 1 0
 )
 
 icmprw :: ICMPPingRewriter(
   pattern OUT_ADDR 1024-65535 - - 0 1,
-  pattern IN_ADDR  - - - 1 0
+  //pattern IN_ADDR  - - - 1 0
 )
 
 iprw[2] -> Print("NAPT: TCP/UDP NAT FAILED") -> Discard
@@ -126,8 +126,8 @@ ip_filter_out[0] -> Print("NAPT: PING to gateway (ext zone)") -> ICMPPingRespond
 ip_filter_out[1] -> DecIPTTL -> IPPrint("NAPT: IP stripped from ext", TIMESTAMP true) -> ip_class_out
 ip_filter_out[2] -> Print("NAPT: Filter DROP from ext") -> cnt_drop_ext_other_ip
 
-ip_class_out[0] -> cnt_tcp_udp_out -> IPPrint("NAPT: return TCP/UDP -> iprw[1]", TIMESTAMP true) -> [1]iprw
-ip_class_out[1] -> cnt_icmp_out -> IPPrint("NAPT: return ICMP reply -> icmprw[1]", TIMESTAMP true) -> [1]icmprw
+ip_class_out[0] -> cnt_tcp_udp_out -> IPPrint("NAPT: return TCP/UDP -> iprw[1]", TIMESTAMP true) -> [0]iprw
+ip_class_out[1] -> cnt_icmp_out -> IPPrint("NAPT: return ICMP reply -> icmprw[1]", TIMESTAMP true) -> [0]icmprw
 ip_class_out[2] -> IPPrint("NAPT: other return IP -> DISCARD", TIMESTAMP true) -> cnt_drop_ext_other_ip
 
 // Single discard for merged ext drops
