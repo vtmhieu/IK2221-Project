@@ -10,6 +10,7 @@ from topology.topology import *
 import topology.testing as testing
 import subprocess
 import time
+from results.phase_1_report import write_phase_1_report
 
 
 topos = {'mytopo': (lambda: MyTopo())}
@@ -143,3 +144,5 @@ if __name__ == "__main__":
 
         net.stop()
         cleanup()
+
+    write_phase_1_report()
