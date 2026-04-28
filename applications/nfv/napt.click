@@ -52,20 +52,16 @@ ip_class_in  :: IPClassifier(tcp or udp, icmp type echo, -)
 ip_class_out :: IPClassifier(tcp or udp, icmp type echo-reply, -)
 
 
-ip_filter_in :: IPFilter(
-  allow dst 10.0.0.1 and icmp type echo,
-  allow tcp,
-  allow udp,
-  allow icmp,
-  deny all
+ip_filter_in :: IPClassifier(
+  dst host 10.0.0.1 and icmp type echo, // [0] Pings directly to the gateway
+  tcp or udp or icmp,                   // [1] Transit traffic to forward
+  -                                     // [2] Everything else
 )
 
-ip_filter_out :: IPFilter(
-  allow dst 100.0.0.1 and icmp type echo,
-  allow tcp,
-  allow udp,
-  allow icmp,
-  deny all
+ip_filter_out :: IPClassifier(
+  dst host 100.0.0.1 and icmp type echo, // [0] Pings directly to the gateway
+  tcp or udp or icmp,                    // [1] Transit traffic to forward
+  -                                      // [2] Everything else
 )
 
 // ARP Handling
@@ -101,10 +97,14 @@ c1[3] -> cnt_drop_user_nonip -> Print("NAPT: non-ARP/IP from user -> DISCARD", M
 // User zone ping interception vs transit forwarding
 ip_filter_in[0] -> Print("NAPT: PING to gateway (user zone)") -> ICMPPingResponder() -> [0]aq_in
 ip_filter_in[1] -> DecIPTTL -> IPPrint("NAPT: IP stripped from user", TIMESTAMP true) -> ip_class_in
+ip_filter_in[2] -> Print("NAPT: Filter DROP from user") -> cnt_drop_user_other_ip
 
 ip_class_in[0] -> cnt_tcp_udp_in -> IPPrint("NAPT: TCP/UDP from user -> iprw[0]", TIMESTAMP true) -> [0]iprw
 ip_class_in[1] -> cnt_icmp_in -> IPPrint("NAPT: ICMP echo from user -> icmprw[0]", TIMESTAMP true) -> [0]icmprw
-ip_class_in[2] -> cnt_drop_user_other_ip -> IPPrint("NAPT: other IP from user -> DISCARD", TIMESTAMP true) -> Discard
+ip_class_in[2] -> IPPrint("NAPT: other IP from user -> DISCARD", TIMESTAMP true) -> cnt_drop_user_other_ip
+
+// Single discard for merged user drops
+cnt_drop_user_other_ip -> Discard
 
 iprw[0]   -> IPPrint("NAPT: iprw[0] translated TCP/UDP -> ext", TIMESTAMP true) -> aq_out
 icmprw[0] -> IPPrint("NAPT: icmprw[0] translated ICMP -> ext", TIMESTAMP true) -> aq_out
@@ -124,10 +124,14 @@ c2[3] -> cnt_drop_ext_nonip -> Print("NAPT: non-ARP/IP from ext -> DISCARD", MAX
 // Ext zone ping interception vs transit forwarding
 ip_filter_out[0] -> Print("NAPT: PING to gateway (ext zone)") -> ICMPPingResponder() -> [0]aq_out
 ip_filter_out[1] -> DecIPTTL -> IPPrint("NAPT: IP stripped from ext", TIMESTAMP true) -> ip_class_out
+ip_filter_out[2] -> Print("NAPT: Filter DROP from ext") -> cnt_drop_ext_other_ip
 
 ip_class_out[0] -> cnt_tcp_udp_out -> IPPrint("NAPT: return TCP/UDP -> iprw[1]", TIMESTAMP true) -> [1]iprw
 ip_class_out[1] -> cnt_icmp_out -> IPPrint("NAPT: return ICMP reply -> icmprw[1]", TIMESTAMP true) -> [1]icmprw
-ip_class_out[2] -> cnt_drop_ext_other_ip -> IPPrint("NAPT: other return IP -> DISCARD", TIMESTAMP true) -> Discard
+ip_class_out[2] -> IPPrint("NAPT: other return IP -> DISCARD", TIMESTAMP true) -> cnt_drop_ext_other_ip
+
+// Single discard for merged ext drops
+cnt_drop_ext_other_ip -> Discard
 
 iprw[1]   -> IPPrint("NAPT: iprw[1] un-NAT TCP/UDP -> user", TIMESTAMP true) -> aq_in
 icmprw[1] -> IPPrint("NAPT: icmprw[1] un-NAT ICMP -> user", TIMESTAMP true) -> aq_in
