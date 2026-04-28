@@ -111,6 +111,11 @@ def startup_services(net):
         host = net.get(host_name)
         host.cmd('ip route replace default via 100.0.0.1')
     print("Configured default routes for llm1/llm2/llm3/insp via 100.0.0.1")
+    
+    # 4. Start tcpdump on the inspector to capture suspicious packets to a PCAP file
+    insp = net.get('insp')
+    insp.cmd('tcpdump -i insp-eth0 -w /tmp/inspector.pcap &')
+    print("Started tcpdump on insp (capturing to /tmp/inspector.pcap)")
 
 
 
@@ -144,4 +149,6 @@ if __name__ == "__main__":
 
     # You may need some commands before stopping the network! If you don't, leave it empty
     ### COMPLETE THIS PART ###
+    insp = net.get('insp')
+    insp.cmd('kill %tcpdump 2>/dev/null || true')
     net.stop()
