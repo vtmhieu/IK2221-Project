@@ -5,7 +5,6 @@ define($PORT1 lb1-eth1, $PORT2 lb1-eth2)
 // TODO: Change to correct IPs.
 define($VIP 10.0.0.43, $LB_MAC 11:11:11:11:11:11, $llm1 10.0.0.40, $llm2 10.0.0.41, $llm3 10.0.0.42)
 
-// TODO: Modify this to the internal address.
 AddressInfo(load_balancer_ip $VIP)
 
 Script(print "LB1: Click load balancer on $PORT1 $PORT2")
@@ -75,7 +74,6 @@ cnt_llm2_icmp::Counter
 cnt_llm3_icmp::Counter
 cnt_llm_unknown_icmp::Counter
 
-// TODO: Modify this to the internal address.
 arp_rest1::ARPResponder($VIP $LB_MAC)
 arp_rest2::ARPResponder($VIP $LB_MAC)
 
