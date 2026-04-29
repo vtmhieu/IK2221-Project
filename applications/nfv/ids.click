@@ -5,7 +5,7 @@ define($HTTP_OFF_OPT 52)
 
 Script(print "Click IDS on $PORT1 $PORT2 $PORT3")
 
-// From Devices: FD1 - traffic from users, FD2 - traffic from load balancer responses
+// From devices: fd1 traffic from users, fd2 - traffic from load balancer responses
 fd1::FromDevice($PORT1, SNIFFER false, METHOD LINUX, PROMISC true)
 fd2::FromDevice($PORT2, SNIFFER false, METHOD LINUX, PROMISC true)
 
@@ -99,7 +99,7 @@ c_uz_ip[1]
 	-                             // TCP signaling (SYN, ACK, FIN etc.)
 );
 
-// POST: allowed through to lb1
+// Post: allowed through to lb1
 c_http_method[0] -> cnt_http_post -> Print("IDS ---  BRANCH: POST -> lb1", TIMESTAMP true) -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
 
 // PUT: needs payload inspection 
@@ -113,7 +113,7 @@ c_http_method[1] -> cnt_http_put ->  c_put_payload_opt::Classifier(
 	-                                  // everything else
 );
 
-// GET, HEAD, OPTIONS, TRACE, DELETE, CONNECT: all go to inspector
+// GET, HEAD, OPTIONS, TRACE, DELETE, CONNECT to inspector
 c_http_method[2] -> cnt_http_bad_method_get -> Print("IDS ---  BRANCH: GET -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
 c_http_method[3] -> cnt_http_bad_method_head -> Print("IDS ---  BRANCH: HEAD -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
 c_http_method[4] -> cnt_http_bad_method_options -> Print("IDS ---  BRANCH: OPTIONS -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
@@ -121,10 +121,10 @@ c_http_method[5] -> cnt_http_bad_method_trace -> Print("IDS ---  BRANCH: TRACE -
 c_http_method[6] -> cnt_http_bad_method_delete -> Print("IDS ---  BRANCH: DELETE -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
 c_http_method[7] -> cnt_http_bad_method_connect -> Print("IDS ---  BRANCH: CONNECT -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
 
-// TCP signaling (SYN, ACK, FIN): no HTTP method matched, pass through
+// TCP signaling: no HTTP method matched, pass through
 c_http_method[8] -> cnt_uz_tcp_signal_80 -> Print("IDS ---  BRANCH: TCP sig port80 -> lb1", TIMESTAMP true) -> Unstrip(14) -> q2 -> ac_w_2 -> td_2;
 
-// PUT payload inspection results (options 32-byte TCP header)
+// PUT payload inspection results
 c_put_payload_opt[0] -> cnt_put_cat_etc_passwd -> Print("IDS ---  BRANCH: PUT cat /etc/passwd -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
 c_put_payload_opt[1] -> cnt_put_cat_var_log -> Print("IDS ---  BRANCH: PUT cat /var/log/ -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
 c_put_payload_opt[2] -> cnt_put_insert -> Print("IDS ---  BRANCH: PUT INSERT -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;

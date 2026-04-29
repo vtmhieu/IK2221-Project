@@ -104,7 +104,7 @@ ip_class_in[2] -> IPPrint("NAPT: other IP from user -> DISCARD", TIMESTAMP true)
 // Single discard for merged user drops
 cnt_drop_user_other_ip -> Discard
 
-// FORWARD PATH: Checksum recalculation
+// Checksum recalculation of the forward path
 iprw[0] -> IPPrint("NAPT: iprw[0] translated TCP/UDP -> ext", TIMESTAMP true) 
         -> napt_fwd_csum :: IPClassifier(tcp, udp, -);
 napt_fwd_csum[0] -> SetIPChecksum -> SetTCPChecksum -> aq_out;
@@ -138,7 +138,7 @@ ip_class_out[2] -> IPPrint("NAPT: other return IP -> DISCARD", TIMESTAMP true) -
 // Single discard for merged ext drops
 cnt_drop_ext_other_ip -> Discard
 
-// RETURN PATH: Checksum recalculation
+// Checksum recalculation of the return path
 iprw[1] -> IPPrint("NAPT: iprw[1] un-NAT TCP/UDP -> user", TIMESTAMP true) 
         -> napt_ret_csum :: IPClassifier(tcp, udp, -);
 napt_ret_csum[0] -> SetIPChecksum -> SetTCPChecksum -> aq_in;

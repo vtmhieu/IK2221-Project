@@ -135,7 +135,7 @@ ip_class_out[0] -> [1]lb_rw     // Return TCP/UDP
 ip_class_out[1] -> [1]icmp_rw   // Return ICMP Ping Replies
 ip_class_out[2] -> Discard
 
-// RETURN PATH: Checksum recalculation and client routing
+// Checksum recalculation for the return path and client routing
 lb_rw[1] -> IPPrint("LB1: rewritten -> client", TIMESTAMP true) 
          -> lb_ret_csum :: IPClassifier(tcp, udp, -);
 lb_ret_csum[0] -> SetIPChecksum -> SetTCPChecksum -> GetIPAddress(16) -> arpq_clients;
