@@ -113,9 +113,13 @@ def startup_services(net):
     print("Configured default routes for llm1/llm2/llm3/insp via 100.0.0.1")
     
     # 4. Start tcpdump on the inspector to capture suspicious packets to a PCAP file
+    logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'logs')
+    os.makedirs(logs_dir, exist_ok=True)
+
     insp = net.get('insp')
-    insp.cmd('tcpdump -i insp-eth0 -w /tmp/inspector.pcap &')
-    print("Started tcpdump on insp (capturing to /tmp/inspector.pcap)")
+    pcap_path = os.path.join(logs_dir, 'inspector.pcap')
+    insp.cmd(f'tcpdump -i insp-eth0 -w {pcap_path} &')
+    print(f"Started tcpdump on insp (capturing to {pcap_path})")
 
 
 
