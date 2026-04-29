@@ -30,7 +30,7 @@ test:
 	$(MAKE) app >/tmp/pox-test.log 2>&1 & \
 	sleep 5; \
 	echo "3. Running automated topology tests"; \
-	sudo python ./topology/topology_test.py; \
+	sudo python -m results.topology_test; \
 	echo "4. Shutting down and flushing reports"
 
 clean:
@@ -48,4 +48,10 @@ clean:
 	sudo mn -c
 	# Kill click processes
 	-@sudo killall -SIGTERM click 2>/dev/null || true
+	# Clean result/log files 
+	-@echo "Cleaning result and log files"
+	-@sudo rm -f /results/*.report /results/*.err 2>/dev/null || true
+	-@sudo rm -f /logs/* 2>/dev/null || true
+	-@rm -f results/*.report results/*.err 2>/dev/null || true
+	-@rm -f logs/* 2>/dev/null || true
 

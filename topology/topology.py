@@ -107,9 +107,20 @@ def startup_services(net):
     # 2. Add default routes for hosts in the User Zone to point to the NAPT
     h1 = net.get('h1')
     h2 = net.get('h2')
-    h1.cmd('ip route add default via 10.0.0.1')
-    h2.cmd('ip route add default via 10.0.0.1')
+    h1.cmd('ip route replace default via 10.0.0.1')
+    h2.cmd('ip route replace default via 10.0.0.1')
     print("Configured default routes for h1 and h2 via 10.0.0.1")
+
+    # 3. Add default routes for inferencing-zone hosts to return traffic via NAPT.
+    for host_name in ['llm1', 'llm2', 'llm3', 'insp']:
+        host = net.get(host_name)
+        host.cmd('ip route replace default via 100.0.0.1')
+    print("Configured default routes for llm1/llm2/llm3/insp via 100.0.0.1")
+    
+    # 4. Start tcpdump on the inspector to capture suspicious packets to a PCAP file
+    insp = net.get('insp')
+    insp.cmd('tcpdump -i insp-eth0 -w /tmp/inspector.pcap &')
+    print("Started tcpdump on insp (capturing to /tmp/inspector.pcap)")
 
 
 
@@ -143,4 +154,6 @@ if __name__ == "__main__":
 
     # You may need some commands before stopping the network! If you don't, leave it empty
     ### COMPLETE THIS PART ###
+    insp = net.get('insp')
+    insp.cmd('kill %tcpdump 2>/dev/null || true')
     net.stop()

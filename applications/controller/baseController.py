@@ -48,17 +48,17 @@ class controller (object):
             # This is the NAPT switch
             # You should run the NAPT module click node (/TODO Replace napt.click with your NAPT implementation)
             log.info("Starting NAPT")
-            self.devices[id] = click_wrapper.start_click("/opt/pox/ext/napt.click", "", "napt.report", "napt.stderr")
+            self.devices[id] = click_wrapper.start_click("/opt/pox/ext/napt.click", "", "results/napt.report", "logs/napt.stderr")
         elif(id==5):
             # This is the IDS switch
             # You should run the IDS module click node (/TODO Replace ids.click with your ids implementation)
             log.info("Starting IDS")
-            self.devices[id] = click_wrapper.start_click("/opt/pox/ext/ids.click", "", "ids.report", "ids.stderr")
+            self.devices[id] = click_wrapper.start_click("/opt/pox/ext/ids.click", "", "results/ids.report", "logs/ids.stderr")
         elif(id==6):
             # This is the Load Balancer switch
             # You should run the Load Balancer module click node (/TODO Replace lb1.click with your load balancer implementation)
             log.info("Starting Load Balancer")
-            self.devices[id] = click_wrapper.start_click("/opt/pox/ext/lb1.click", "", "lb1.report", "lb1.stderr")
+            self.devices[id] = click_wrapper.start_click("/opt/pox/ext/lb1.click", "", "results/lb1.report", "logs/lb1.stderr")
         else:
             # Error
             log.error("Unknown device connected to the controller")
