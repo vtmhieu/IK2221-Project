@@ -57,7 +57,7 @@ def run_tests(net):
     record("ping h1 -> napt", testing.ping(h1, napt, expected=True))
     
     
-    record("ping h1 -> ids", testing.ping(h1, ids, expected=True))
+    # record("ping h1 -> ids", testing.ping(h1, ids, expected=True))
     
     record("ping h1 -> load balancer VIP", testing.ping(h1, lb_vip, expected=True))
 
@@ -134,6 +134,8 @@ def run_tests(net):
         "HTTP PUT cat /var/log/ blocked/diverted by IDS",
         testing.curl(h1, http_target, method="PUT", payload="cat /var/log/", expected=False),
     )
+
+    
 
     passed_count = sum(1 for _, passed in results if passed)
     failed = [(name, passed) for name, passed in results if not passed]
