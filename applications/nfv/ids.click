@@ -110,7 +110,7 @@ c_http_method[1] -> cnt_http_put -> search_put;
 
 search_put[0] -> c_put_payload_opt::Classifier(
 	0/636174202f6574632f706173737764, // "cat /etc/passwd"
-	0/636174202f7661722f6c6f67,       // "cat /var/log"
+	0/636174202f7661722f6c6f672f,       // "cat /var/log/"
 	0/494e53455254,                   // "INSERT"
 	0/555044415445,                   // "UPDATE"
 	0/44454c455445,                   // "DELETE"
@@ -130,7 +130,7 @@ c_http_method[8] -> cnt_uz_tcp_signal_80 -> Print("IDS ---  BRANCH: TCP sig port
 
 // PUT payload inspection results (options 32-byte TCP header)
 c_put_payload_opt[0] -> cnt_put_cat_etc_passwd -> Print("IDS ---  BRANCH: PUT cat /etc/passwd -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
-c_put_payload_opt[1] -> cnt_put_cat_var_log -> Print("IDS ---  BRANCH: PUT cat /var/log -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
+c_put_payload_opt[1] -> cnt_put_cat_var_log -> Print("IDS ---  BRANCH: PUT cat /var/log/ -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
 c_put_payload_opt[2] -> cnt_put_insert -> Print("IDS ---  BRANCH: PUT INSERT -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
 c_put_payload_opt[3] -> cnt_put_update -> Print("IDS ---  BRANCH: PUT UPDATE -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
 c_put_payload_opt[4] -> cnt_put_delete -> Print("IDS ---  BRANCH: PUT DELETE -> insp", TIMESTAMP true) -> Unstrip(14) -> q3 -> ac_w_1 -> td_3;
