@@ -113,7 +113,7 @@ def run_tests(net):
         "HTTP PUT safe payload allowed through IDS to VIP",
         testing.curl(h1, http_target, method="PUT", payload="safe=data"),
     )
-
+    #Tests 11-14: Test HTTP PUT with various malicious payloads
     record(
         "HTTP PUT INSERT blocked/diverted by IDS",
         testing.curl(h1, http_target, method="PUT", payload="INSERT", expected=False),
@@ -134,6 +134,42 @@ def run_tests(net):
         testing.curl(h1, http_target, method="PUT", payload="cat /var/log/", expected=False),
     )
 
+    #Tests 15-20: Duplicate some above tests from h2
+
+    record(
+        "HTTP POST allowed through IDS to VIP",
+        testing.curl(h2, http_target, method="POST", payload="test=data"),
+    )
+
+    record(
+        "HTTP PUT allowed through IDS to VIP",
+        testing.curl(h2, http_target, method="PUT", payload="test=data"),
+    )
+
+    record(
+        "HTTP GET blocked/diverted by IDS",
+        testing.curl(h2, http_target, method="GET", expected=False),
+    )
+
+    record(
+        "HTTP DELETE blocked/diverted by IDS",
+        testing.curl(h2, http_target, method="DELETE", expected=False),
+    )
+
+    record(
+        "HTTP HEAD blocked/diverted by IDS",
+        testing.curl(h2, http_target, method="HEAD", expected=False),
+    )
+
+    record(
+        "HTTP PUT safe payload allowed through IDS to VIP",
+        testing.curl(h2, http_target, method="PUT", payload="safe=data"),
+    )
+
+    record(
+        "HTTP PUT INSERT blocked/diverted by IDS",
+        testing.curl(h2, http_target, method="PUT", payload="INSERT", expected=False),
+    )
     
 
     passed_count = sum(1 for _, passed in results if passed)
