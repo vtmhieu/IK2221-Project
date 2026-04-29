@@ -6,7 +6,7 @@ def ping(client, server, expected, count=1, wait=1):
     server_ip = server.IP() if not isinstance(server, str) else server
     
     # What if ping fails? How long does it take? Add a timeout to the command!
-    cmd = f"ping {server_ip} -c {count} -W {wait}  >/dev/null 2>&1; echo $?"
+    cmd = f"timeout 2s ping {server_ip} -c {count} -W {wait} >/dev/null 2>&1; echo $?"
     ret = client.cmd(cmd).strip()
     
     # Here you should compare the return value "ret" with the expected value

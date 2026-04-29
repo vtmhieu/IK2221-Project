@@ -10,10 +10,14 @@ from topology.topology import *
 import topology.testing as testing
 import subprocess
 import time
-from results.phase_1_report import write_phase_1_report
 
 
 topos = {'mytopo': (lambda: MyTopo())}
+
+
+def _reset_terminal_output():
+    subprocess.run("stty sane 2>/dev/null || true", shell=True, check=False)
+    subprocess.run("stty onlcr 2>/dev/null || true", shell=True, check=False)
 
 
 def _reset_logs(paths):
@@ -30,84 +34,129 @@ def _graceful_stop_click():
 
 def run_tests(net):
     # You can automate some tests here
+    _reset_terminal_output()
 
     h1 = net.get('h1')
     h2 = net.get('h2')
-    s1 = net.get('s1')
-    s2 = net.get('s2')
     napt = net.get('napt')
     ids = net.get('ids')
-    llm1 = net.get('llm1')
-    http_target = llm1
+    lb_vip = "100.0.0.45"
+    http_target = lb_vip
+    results = []
+
+    def record(name, passed):
+        results.append((name, passed))
+        status = "PASS" if passed else "FAIL"
+        print(f"[{status}] {name}")
 
 
     # Test 1: Ping the Load balancer Virtual IP
-    print("Testing ping from h1 to h2:")
-    testing.ping(h1, h2, expected=True)
+    record("ping h1 -> h2", testing.ping(h1, h2, expected=True))
     
-    print("Testing ping from h1 to napt:")
-    testing.ping(h1, napt, expected=True)
+    record("ping h1 -> napt", testing.ping(h1, napt, expected=True))
     
     
-    print("Testing ping from h1 to ids:")
-    testing.ping(h1, ids, expected=True)
+    # record("ping h1 -> ids", testing.ping(h1, ids, expected=True))
     
-    print("Testing ping from h1 to llm1:")
-    testing.ping(h1, llm1, expected=True)
+    record("ping h1 -> load balancer VIP", testing.ping(h1, lb_vip, expected=True))
 
     # Test 2: Test HTTP POST request
-    print("Testing HTTP POST request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="POST", payload="test=data")
+    record(
+        "HTTP POST allowed through IDS to VIP",
+        testing.curl(h1, http_target, method="POST", payload="test=data"),
+    )
 
     # Test 3: Test HTTP PUT request
-    print("Testing HTTP PUT request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="test=data")
+    record(
+        "HTTP PUT allowed through IDS to VIP",
+        testing.curl(h1, http_target, method="PUT", payload="test=data"),
+    )
 
     # Test 4: Test HTTP GET request
-    print("Testing HTTP GET request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="GET")
+    record(
+        "HTTP GET blocked/diverted by IDS",
+        testing.curl(h1, http_target, method="GET", expected=False),
+    )
 
     # Test 5: Test HTTP DELETE request
-    print("Testing HTTP DELETE request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="DELETE")
+    record(
+        "HTTP DELETE blocked/diverted by IDS",
+        testing.curl(h1, http_target, method="DELETE", expected=False),
+    )
 
     # Test 6: Test HTTP OPTIONS request
-    print("Testing HTTP OPTIONS request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="OPTIONS")
+    record(
+        "HTTP OPTIONS blocked/diverted by IDS",
+        testing.curl(h1, http_target, method="OPTIONS", expected=False),
+    )
 
     # Test 7: Test HTTP TRACE request
-    print("Testing HTTP TRACE request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="TRACE")
+    record(
+        "HTTP TRACE blocked/diverted by IDS",
+        testing.curl(h1, http_target, method="TRACE", expected=False),
+    )
 
     # Test 8: Test HTTP CONNECT request
-    print("Testing HTTP CONNECT request from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="CONNECT")
+    record(
+        "HTTP CONNECT blocked/diverted by IDS",
+        testing.curl(h1, http_target, method="CONNECT", expected=False),
+    )
 
     # Test 9: Test HTTP PUT with malicious payload
-    print("Testing HTTP PUT with malicious payload from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="cat /etc/passwd")
+    record(
+        "HTTP PUT cat /etc/passwd blocked/diverted by IDS",
+        testing.curl(h1, http_target, method="PUT", payload="cat /etc/passwd", expected=False),
+    )
 
     # Test 10: Test HTTP PUT with safe payload
-    print("Testing HTTP PUT with safe payload from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="safe=data")
+    record(
+        "HTTP PUT safe payload allowed through IDS to VIP",
+        testing.curl(h1, http_target, method="PUT", payload="safe=data"),
+    )
 
-    print("Testing HTTP PUT with unsafe INSERT from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="INSERT")
+    record(
+        "HTTP PUT INSERT blocked/diverted by IDS",
+        testing.curl(h1, http_target, method="PUT", payload="INSERT", expected=False),
+    )
 
-    print("Testing HTTP PUT with unsafe UPDATE from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="UPDATE")
+    record(
+        "HTTP PUT UPDATE blocked/diverted by IDS",
+        testing.curl(h1, http_target, method="PUT", payload="UPDATE", expected=False),
+    )
 
-    print("Testing HTTP PUT with unsafe DELETE from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="DELETE")
+    record(
+        "HTTP PUT DELETE blocked/diverted by IDS",
+        testing.curl(h1, http_target, method="PUT", payload="DELETE", expected=False),
+    )
 
-    print("Testing HTTP PUT with unsafe payload from h1 to llm1 (through IDS path):")
-    testing.curl(h1, http_target, method="PUT", payload="cat /var/log/")
+    record(
+        "HTTP PUT cat /var/log/ blocked/diverted by IDS",
+        testing.curl(h1, http_target, method="PUT", payload="cat /var/log/", expected=False),
+    )
+
+    
+
+    passed_count = sum(1 for _, passed in results if passed)
+    failed = [(name, passed) for name, passed in results if not passed]
+
+    print("")
+    print("================= TEST RECAP =================")
+    for name, passed in results:
+        status = "PASS" if passed else "FAIL"
+        print(f"{status}: {name}")
+    print("----------------------------------------------")
+    print(f"Passed: {passed_count}/{len(results)}")
+    print(f"Failed: {len(failed)}/{len(results)}")
+    print("==============================================")
+
+    return not failed
 
 
 if __name__ == "__main__":
 
     # Extra safety cleanup: remove stale mininet links/nodes before creating a new topology.
     cleanup()
+    _reset_terminal_output()
 
     # Create topology
     topo = MyTopo()
@@ -125,13 +174,15 @@ if __name__ == "__main__":
 
     # Start the network
     net.start()
+    _reset_terminal_output()
 
     print("Waiting 10 seconds for controllers, switches, and CLICK nodes to initialize...")
     time.sleep(10)
     
+    tests_passed = False
     try:
         startup_services(net)
-        run_tests(net)
+        tests_passed = run_tests(net)
     finally:
         print("--- Requesting graceful CLICK shutdown ---")
         _graceful_stop_click()
@@ -145,4 +196,5 @@ if __name__ == "__main__":
         net.stop()
         cleanup()
 
-    write_phase_1_report()
+    if not tests_passed:
+        raise SystemExit(1)

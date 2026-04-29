@@ -7,7 +7,7 @@ Script(print "Click NAPT on $PORT1 $PORT2")
 // IP configuration
 AddressInfo(
   IN_ADDR    10.0.0.1/24    1A:1A:1A:1A:1A:1A,
-  OUT_ADDR   100.0.0.1/24   2B:2B:2B:2B:2B:2B
+  OUT_ADDR   100.0.0.1/24   2A:2A:2A:2A:2A:2A
 )
 
 // Device I/O
@@ -51,7 +51,6 @@ c2::Classifier(12/0806 20/0001, 12/0806 20/0002, 12/0800, -)
 ip_class_in  :: IPClassifier(tcp or udp, icmp type echo, -)
 ip_class_out :: IPClassifier(tcp or udp, icmp type echo-reply, -)
 
-
 ip_filter_in :: IPClassifier(
   dst host 10.0.0.1 and icmp type echo, // [0] Pings directly to the gateway
   tcp or udp or icmp,                   // [1] Transit traffic to forward
@@ -74,17 +73,16 @@ aq_out :: ARPQuerier(OUT_ADDR)
 // NAT Logic
 iprw :: IPRewriter(
   pattern OUT_ADDR 1024-65535 - - 0 1,
-  //pattern IN_ADDR  - - - 1 0
+  pattern IN_ADDR  - - - 1 0
 )
 
 icmprw :: ICMPPingRewriter(
   pattern OUT_ADDR 1024-65535 - - 0 1,
-  //pattern IN_ADDR  - - - 1 0
+  pattern IN_ADDR  - - - 1 0
 )
 
 iprw[2] -> Print("NAPT: TCP/UDP NAT FAILED") -> Discard
 icmprw[2] -> Print("NAPT: ICMP NAT FAILED") -> Discard
-
 
 // ======== USER (IN) → OUT ========
 fd1 -> ac_fd1 -> Print("NAPT: raw pkt from user zone", MAXLENGTH 64, TIMESTAMP true) -> c1
@@ -106,8 +104,15 @@ ip_class_in[2] -> IPPrint("NAPT: other IP from user -> DISCARD", TIMESTAMP true)
 // Single discard for merged user drops
 cnt_drop_user_other_ip -> Discard
 
-iprw[0]   -> IPPrint("NAPT: iprw[0] translated TCP/UDP -> ext", TIMESTAMP true) -> aq_out
-icmprw[0] -> IPPrint("NAPT: icmprw[0] translated ICMP -> ext", TIMESTAMP true) -> aq_out
+// Checksum recalculation of the forward path
+iprw[0] -> IPPrint("NAPT: iprw[0] translated TCP/UDP -> ext", TIMESTAMP true) 
+        -> napt_fwd_csum :: IPClassifier(tcp, udp, -);
+napt_fwd_csum[0] -> SetIPChecksum -> SetTCPChecksum -> aq_out;
+napt_fwd_csum[1] -> SetIPChecksum -> SetUDPChecksum -> aq_out;
+napt_fwd_csum[2] -> SetIPChecksum -> aq_out;
+
+icmprw[0] -> IPPrint("NAPT: icmprw[0] translated ICMP -> ext", TIMESTAMP true) 
+          -> SetIPChecksum -> aq_out;
 
 aq_out[0] -> Print("NAPT: aq_out[0] -> q2", MAXLENGTH 64, TIMESTAMP true) -> q2
 aq_out[1] -> Print("NAPT: aq_out[1] ARP query -> q2", MAXLENGTH 64, TIMESTAMP true) -> q2
@@ -126,19 +131,25 @@ ip_filter_out[0] -> Print("NAPT: PING to gateway (ext zone)") -> ICMPPingRespond
 ip_filter_out[1] -> DecIPTTL -> IPPrint("NAPT: IP stripped from ext", TIMESTAMP true) -> ip_class_out
 ip_filter_out[2] -> Print("NAPT: Filter DROP from ext") -> cnt_drop_ext_other_ip
 
-ip_class_out[0] -> cnt_tcp_udp_out -> IPPrint("NAPT: return TCP/UDP -> iprw[1]", TIMESTAMP true) -> [0]iprw
-ip_class_out[1] -> cnt_icmp_out -> IPPrint("NAPT: return ICMP reply -> icmprw[1]", TIMESTAMP true) -> [0]icmprw
+ip_class_out[0] -> cnt_tcp_udp_out -> IPPrint("NAPT: return TCP/UDP -> iprw[1]", TIMESTAMP true) -> [1]iprw
+ip_class_out[1] -> cnt_icmp_out -> IPPrint("NAPT: return ICMP reply -> icmprw[1]", TIMESTAMP true) -> [1]icmprw
 ip_class_out[2] -> IPPrint("NAPT: other return IP -> DISCARD", TIMESTAMP true) -> cnt_drop_ext_other_ip
 
 // Single discard for merged ext drops
 cnt_drop_ext_other_ip -> Discard
 
-iprw[1]   -> IPPrint("NAPT: iprw[1] un-NAT TCP/UDP -> user", TIMESTAMP true) -> aq_in
-icmprw[1] -> IPPrint("NAPT: icmprw[1] un-NAT ICMP -> user", TIMESTAMP true) -> aq_in
+// Checksum recalculation of the return path
+iprw[1] -> IPPrint("NAPT: iprw[1] un-NAT TCP/UDP -> user", TIMESTAMP true) 
+        -> napt_ret_csum :: IPClassifier(tcp, udp, -);
+napt_ret_csum[0] -> SetIPChecksum -> SetTCPChecksum -> aq_in;
+napt_ret_csum[1] -> SetIPChecksum -> SetUDPChecksum -> aq_in;
+napt_ret_csum[2] -> SetIPChecksum -> aq_in;
+
+icmprw[1] -> IPPrint("NAPT: icmprw[1] un-NAT ICMP -> user", TIMESTAMP true) 
+          -> SetIPChecksum -> aq_in;
 
 aq_in[0] -> Print("NAPT: aq_in[0] -> q1", MAXLENGTH 64, TIMESTAMP true) -> q1
 aq_in[1] -> Print("NAPT: aq_in[1] ARP query -> q1", MAXLENGTH 64, TIMESTAMP true) -> q1
-
 
 // ======== Lifecycle & Reporting ========
 DriverManager(
