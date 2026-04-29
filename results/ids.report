@@ -1,0 +1,36 @@
+Router starting
+Click IDS on ids-eth1 ids-eth3 ids-eth2
+
+=================Aggregate Statistics===============
+
+Total received user packets: 252
+Total user packets dropped by IDS: 16
+Total received load balancer response packets: 69
+
+Total packets sent to insepctor: 160
+Total packets sent to LB: 76
+
+Input Rate (pps): 4.80686695279
+Output Rate (pps): 1.32432536179
+
+=================Individual Request Type Statistics==============
+Received from user (ARP): 2
+Received from user (ICMP): 1
+Received from user (TCP signaling): 0
+Received from user (TCP signaling on port 80): 67
+Received from user (HTTP): 233
+HTTP POST allowed: 2
+HTTP PUT observed: 69
+HTTP GET bad method to inspector: 24
+HTTP HEAD bad method to inspector: 9
+HTTP OPTIONS bad method to inspector: 13
+HTTP TRACE bad method to inspector: 13
+HTTP DELETE bad method to inspector: 23
+HTTP CONNECT bad method to inspector: 13
+Other IP traffic: 0
+PUT safe to lb1: 4
+PUT cat /etc/passwd blocked: 12
+PUT cat /var/log/ blocked: 11
+PUT INSERT blocked: 18
+PUT UPDATE blocked: 12
+PUT DELETE blocked: 12

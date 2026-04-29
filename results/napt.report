@@ -1,0 +1,26 @@
+NAPT starting
+Click NAPT on napt-eth1 napt-eth2
+================ NAPT REPORT ================
+Input rate (user pps):  4.97303888878
+Input rate (ext pps):  1.62433832101
+Output rate (user pps):  1.5038300672
+Output rate (ext pps):  5.54550367742
+Input packets (user):  261
+Input packets (ext):  85
+Output packets (user):  64
+Output packets (ext):  236
+--- Traffic ---
+ARP req user:  2
+ARP rep user:  2
+ARP req ext:  1
+ARP rep ext:  1
+TCP/UDP out:  233
+TCP/UDP in:  59
+ICMP out:  1
+ICMP in:  1
+--- Drops ---
+User non-IP:  23
+User other IP:  0
+Ext non-IP:  23
+Ext other IP:  0
+============================================

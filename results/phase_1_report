@@ -1,0 +1,86 @@
+1. Cleaning stale controller/mininet/click state
+2. Starting controller in background
+3. Running automated topology tests
+Waiting 10 seconds for controllers, switches, and CLICK nodes to initialize...
+--- Starting Services and Configuring Routes ---
+Started HTTP server on llm1
+Started HTTP server on llm2
+Started HTTP server on llm3
+Configured default routes for h1 and h2 via 10.0.0.1
+Configured default routes for llm1/llm2/llm3/insp via 100.0.0.1
+Started tcpdump on insp (capturing to /home/ik2221/IK2221-Project/topology/../logs/inspector.pcap)
+[PASS] ping h1 -> h2
+[PASS] ping h1 -> napt
+[PASS] ping h1 -> load balancer VIP
+`curl -X POST -d 'test=data' --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h1 returned 0
+[PASS] HTTP POST allowed through IDS to VIP
+`curl -X PUT -d 'test=data' --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h1 returned 0
+[PASS] HTTP PUT allowed through IDS to VIP
+`curl -X GET  --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h1 returned 28
+[PASS] HTTP GET blocked/diverted by IDS
+`curl -X DELETE  --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h1 returned 28
+[PASS] HTTP DELETE blocked/diverted by IDS
+`curl -X OPTIONS  --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h1 returned 28
+[PASS] HTTP OPTIONS blocked/diverted by IDS
+`curl -X TRACE  --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h1 returned 28
+[PASS] HTTP TRACE blocked/diverted by IDS
+`curl -X CONNECT  --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h1 returned 28
+[PASS] HTTP CONNECT blocked/diverted by IDS
+`curl -X PUT -d 'cat /etc/passwd' --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h1 returned 28
+[PASS] HTTP PUT cat /etc/passwd blocked/diverted by IDS
+`curl -X PUT -d 'safe=data' --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h1 returned 0
+[PASS] HTTP PUT safe payload allowed through IDS to VIP
+`curl -X PUT -d 'INSERT' --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h1 returned 28
+[PASS] HTTP PUT INSERT blocked/diverted by IDS
+`curl -X PUT -d 'UPDATE' --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h1 returned 28
+[PASS] HTTP PUT UPDATE blocked/diverted by IDS
+`curl -X PUT -d 'DELETE' --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h1 returned 28
+[PASS] HTTP PUT DELETE blocked/diverted by IDS
+`curl -X PUT -d 'cat /var/log/' --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h1 returned 28
+[PASS] HTTP PUT cat /var/log/ blocked/diverted by IDS
+`curl -X POST -d 'test=data' --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h2 returned 0
+[PASS] HTTP POST allowed through IDS to VIP
+`curl -X PUT -d 'test=data' --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h2 returned 0
+[PASS] HTTP PUT allowed through IDS to VIP
+`curl -X GET  --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h2 returned 28
+[PASS] HTTP GET blocked/diverted by IDS
+`curl -X DELETE  --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h2 returned 28
+[PASS] HTTP DELETE blocked/diverted by IDS
+`curl -X HEAD  --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h2 returned 28
+[PASS] HTTP HEAD blocked/diverted by IDS
+`curl -X PUT -d 'safe=data' --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h2 returned 0
+[PASS] HTTP PUT safe payload allowed through IDS to VIP
+`curl -X PUT -d 'INSERT' --connect-timeout 3 --max-time 3 -s 100.0.0.45:80 > /dev/null 2>&1; echo $?` on h2 returned 28
+[PASS] HTTP PUT INSERT blocked/diverted by IDS
+
+================= TEST RECAP =================
+PASS: ping h1 -> h2
+PASS: ping h1 -> napt
+PASS: ping h1 -> load balancer VIP
+PASS: HTTP POST allowed through IDS to VIP
+PASS: HTTP PUT allowed through IDS to VIP
+PASS: HTTP GET blocked/diverted by IDS
+PASS: HTTP DELETE blocked/diverted by IDS
+PASS: HTTP OPTIONS blocked/diverted by IDS
+PASS: HTTP TRACE blocked/diverted by IDS
+PASS: HTTP CONNECT blocked/diverted by IDS
+PASS: HTTP PUT cat /etc/passwd blocked/diverted by IDS
+PASS: HTTP PUT safe payload allowed through IDS to VIP
+PASS: HTTP PUT INSERT blocked/diverted by IDS
+PASS: HTTP PUT UPDATE blocked/diverted by IDS
+PASS: HTTP PUT DELETE blocked/diverted by IDS
+PASS: HTTP PUT cat /var/log/ blocked/diverted by IDS
+PASS: HTTP POST allowed through IDS to VIP
+PASS: HTTP PUT allowed through IDS to VIP
+PASS: HTTP GET blocked/diverted by IDS
+PASS: HTTP DELETE blocked/diverted by IDS
+PASS: HTTP HEAD blocked/diverted by IDS
+PASS: HTTP PUT safe payload allowed through IDS to VIP
+PASS: HTTP PUT INSERT blocked/diverted by IDS
+----------------------------------------------
+Passed: 23/23
+Failed: 0/23
+==============================================
+--- Requesting graceful CLICK shutdown ---
+--- Cleaning up background services ---
+4. Shutting down and flushing reports

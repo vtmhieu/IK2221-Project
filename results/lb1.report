@@ -1,0 +1,28 @@
+LB1: Router starting
+LB1: Click load balancer on lb1-eth1 lb1-eth2
+LB1 report: interface counters
+LB1 read lb1-eth1: packets=83 rate=1.58324431558 pkt/s
+LB1 read lb1-eth2: packets=97 rate=1.8479710421 pkt/s
+LB1 wrote lb1-eth1: packets=62 rate=1.45693808013 pkt/s
+LB1 wrote lb1-eth2: packets=80 rate=1.88000846004 pkt/s
+LB1 report: client-facing traffic classes
+LB1 lb1-eth1 ARP requests: 1
+LB1 lb1-eth1 ARP replies: 1
+LB1 lb1-eth1 IP packets: 74
+LB1 lb1-eth1 other dropped: 7
+LB1 lb1-eth1 allowed to rewrite: 74
+LB1 lb1-eth1 unallowed dropped: 0
+LB1 report: server-facing traffic classes
+LB1 lb1-eth2 ARP requests: 3
+LB1 lb1-eth2 ARP replies: 3
+LB1 lb1-eth2 IP packets: 60
+LB1 lb1-eth2 other dropped: 31
+LB1 report: backend request distribution
+LB1 requests to llm1 (100.0.0.40): 23
+LB1 requests to llm2 (100.0.0.41): 25
+LB1 requests to llm3 (100.0.0.42): 25
+LB1 requests to unknown backend: 0
+LB1 icmps to llm1 (100.0.0.40): 1
+LB1 icmps to llm2 (100.0.0.41): 0
+LB1 icmps to llm3 (100.0.0.42): 0
+LB1 icmps to unknown backend: 0
