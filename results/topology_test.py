@@ -33,12 +33,10 @@ def run_tests(net):
 
     h1 = net.get('h1')
     h2 = net.get('h2')
-    s1 = net.get('s1')
-    s2 = net.get('s2')
     napt = net.get('napt')
     ids = net.get('ids')
-    llm1 = net.get('llm1')
-    http_target = llm1
+    lb_vip = "100.0.0.45"
+    http_target = lb_vip
 
 
     # Test 1: Ping the Load balancer Virtual IP
@@ -52,55 +50,55 @@ def run_tests(net):
     print("Testing ping from h1 to ids:")
     testing.ping(h1, ids, expected=True)
     
-    print("Testing ping from h1 to llm1:")
-    testing.ping(h1, llm1, expected=True)
+    print("Testing ping from h1 to load balancer VIP:")
+    testing.ping(h1, lb_vip, expected=True)
 
     # Test 2: Test HTTP POST request
-    print("Testing HTTP POST request from h1 to llm1 (through IDS path):")
+    print("Testing HTTP POST request from h1 to load balancer VIP (through IDS path):")
     testing.curl(h1, http_target, method="POST", payload="test=data")
 
     # Test 3: Test HTTP PUT request
-    print("Testing HTTP PUT request from h1 to llm1 (through IDS path):")
+    print("Testing HTTP PUT request from h1 to load balancer VIP (through IDS path):")
     testing.curl(h1, http_target, method="PUT", payload="test=data")
 
     # Test 4: Test HTTP GET request
-    print("Testing HTTP GET request from h1 to llm1 (through IDS path):")
+    print("Testing HTTP GET request from h1 to load balancer VIP (through IDS path):")
     testing.curl(h1, http_target, method="GET")
 
     # Test 5: Test HTTP DELETE request
-    print("Testing HTTP DELETE request from h1 to llm1 (through IDS path):")
+    print("Testing HTTP DELETE request from h1 to load balancer VIP (through IDS path):")
     testing.curl(h1, http_target, method="DELETE")
 
     # Test 6: Test HTTP OPTIONS request
-    print("Testing HTTP OPTIONS request from h1 to llm1 (through IDS path):")
+    print("Testing HTTP OPTIONS request from h1 to load balancer VIP (through IDS path):")
     testing.curl(h1, http_target, method="OPTIONS")
 
     # Test 7: Test HTTP TRACE request
-    print("Testing HTTP TRACE request from h1 to llm1 (through IDS path):")
+    print("Testing HTTP TRACE request from h1 to load balancer VIP (through IDS path):")
     testing.curl(h1, http_target, method="TRACE")
 
     # Test 8: Test HTTP CONNECT request
-    print("Testing HTTP CONNECT request from h1 to llm1 (through IDS path):")
+    print("Testing HTTP CONNECT request from h1 to load balancer VIP (through IDS path):")
     testing.curl(h1, http_target, method="CONNECT")
 
     # Test 9: Test HTTP PUT with malicious payload
-    print("Testing HTTP PUT with malicious payload from h1 to llm1 (through IDS path):")
+    print("Testing HTTP PUT with malicious payload from h1 to load balancer VIP (through IDS path):")
     testing.curl(h1, http_target, method="PUT", payload="cat /etc/passwd")
 
     # Test 10: Test HTTP PUT with safe payload
-    print("Testing HTTP PUT with safe payload from h1 to llm1 (through IDS path):")
+    print("Testing HTTP PUT with safe payload from h1 to load balancer VIP (through IDS path):")
     testing.curl(h1, http_target, method="PUT", payload="safe=data")
 
-    print("Testing HTTP PUT with unsafe INSERT from h1 to llm1 (through IDS path):")
+    print("Testing HTTP PUT with unsafe INSERT from h1 to load balancer VIP (through IDS path):")
     testing.curl(h1, http_target, method="PUT", payload="INSERT")
 
-    print("Testing HTTP PUT with unsafe UPDATE from h1 to llm1 (through IDS path):")
+    print("Testing HTTP PUT with unsafe UPDATE from h1 to load balancer VIP (through IDS path):")
     testing.curl(h1, http_target, method="PUT", payload="UPDATE")
 
-    print("Testing HTTP PUT with unsafe DELETE from h1 to llm1 (through IDS path):")
+    print("Testing HTTP PUT with unsafe DELETE from h1 to load balancer VIP (through IDS path):")
     testing.curl(h1, http_target, method="PUT", payload="DELETE")
 
-    print("Testing HTTP PUT with unsafe payload from h1 to llm1 (through IDS path):")
+    print("Testing HTTP PUT with unsafe payload from h1 to load balancer VIP (through IDS path):")
     testing.curl(h1, http_target, method="PUT", payload="cat /var/log/")
 
 

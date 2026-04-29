@@ -26,12 +26,13 @@ def _read_lines(path: Path) -> Iterable[str]:
 def write_phase_1_report(
     ids_path: Path | str = "logs/ids.stderr",
     napt_path: Path | str = "logs/napt.stderr",
+    lb1_path: Path | str = "logs/lb1.stderr",
     output_path: Path | str = "results/phase_1_report",
 ) -> None:
 
-    # TODO: add the path for the load balancer
     ids_path = Path(ids_path)
     napt_path = Path(napt_path)
+    lb1_path = Path(lb1_path)
     output_path = Path(output_path)
     if output_path.exists():
         output_path.unlink()
@@ -42,6 +43,9 @@ def write_phase_1_report(
         lines.append((_extract_timestamp(line), sequence, line))
         sequence += 1
     for line in _read_lines(napt_path):
+        lines.append((_extract_timestamp(line), sequence, line))
+        sequence += 1
+    for line in _read_lines(lb1_path):
         lines.append((_extract_timestamp(line), sequence, line))
         sequence += 1
 
