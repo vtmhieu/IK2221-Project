@@ -21,10 +21,14 @@ app:
 
 test:
 	@set -e; \
+	stty sane 2>/dev/null || true; \
+	stty onlcr 2>/dev/null || true; \
 	sudo -v; \
 	echo "1. Cleaning stale controller/mininet/click state"; \
 	$(MAKE) clean >/dev/null 2>&1 || true; \
-	cleanup() { $(MAKE) stop >/dev/null 2>&1 || true; }; \
+	stty sane 2>/dev/null || true; \
+	stty onlcr 2>/dev/null || true; \
+	cleanup() { $(MAKE) stop >/dev/null 2>&1 || true; stty sane 2>/dev/null || true; stty onlcr 2>/dev/null || true; }; \
 	trap cleanup EXIT INT TERM; \
 	echo "2. Starting controller in background"; \
 	$(MAKE) app >/tmp/pox-test.log 2>&1 & \
