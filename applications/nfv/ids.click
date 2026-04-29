@@ -46,8 +46,6 @@ cnt_put_delete::Counter
 cnt_uz_other_ip::Counter
 cnt_uz_drop::Counter
 
-// Search element for HTTP PUT payload inspection
-search_put :: Search("\r\n\r\n")
 
 q2 :: Queue
 q3 :: Queue
@@ -106,14 +104,12 @@ c_http_method[0] -> cnt_http_post -> Print("IDS ---  BRANCH: POST -> lb1", TIMES
 
 // PUT: needs payload inspection 
 
-c_http_method[1] -> cnt_http_put -> search_put;
-
-search_put[0] -> c_put_payload_opt::Classifier(
-	0/636174202f6574632f706173737764, // "cat /etc/passwd"
-	0/636174202f7661722f6c6f672f,       // "cat /var/log/"
-	0/494e53455254,                   // "INSERT"
-	0/555044415445,                   // "UPDATE"
-	0/44454c455445,                   // "DELETE"
+c_http_method[1] -> cnt_http_put ->  c_put_payload_opt::Classifier(
+	195/636174202f6574632f706173737764, // "cat /etc/passwd"
+	195/636174202f7661722f6c6f672f,       // "cat /var/log/"
+	194/494e53455254,                   // "INSERT"
+	194/555044415445,                   // "UPDATE"
+	194/44454c455445,                   // "DELETE"
 	-                                  // everything else
 );
 
