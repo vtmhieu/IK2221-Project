@@ -3,7 +3,7 @@ define($PORT1 lb1-eth1, $PORT2 lb1-eth2)
 
 // Addresses
 // TODO: Change to correct IPs.
-define($VIP 10.0.0.43, $LB_MAC 11:11:11:11:11:11, $llm1 10.0.0.40, $llm2 10.0.0.41, $llm3 10.0.0.42)
+define($VIP 10.0.0.45, $LB_MAC 11:11:11:11:11:11, $llm1 10.0.0.40, $llm2 10.0.0.41, $llm3 10.0.0.42)
 
 AddressInfo(load_balancer_ip $VIP)
 
