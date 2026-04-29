@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 poxdir ?= /opt/pox/
 
 # Complete the makefile as you prefer!
@@ -20,6 +22,10 @@ app:
 	sudo python /opt/pox/pox.py baseController
 
 test:
+	@mkdir -p results logs
+	@set -o pipefail; $(MAKE) --no-print-directory test-run 2>&1 | tee results/phase_1_report
+
+test-run:
 	@set -e; \
 	stty sane 2>/dev/null || true; \
 	stty onlcr 2>/dev/null || true; \
