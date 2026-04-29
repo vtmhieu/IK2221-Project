@@ -48,12 +48,25 @@ q2 -> Print("NAPT: OUT -> ext zone (td2)", MAXLENGTH 64, TIMESTAMP true) -> ac_t
 c1::Classifier(12/0806 20/0001, 12/0806 20/0002, 12/0800, -)
 c2::Classifier(12/0806 20/0001, 12/0806 20/0002, 12/0800, -)
 
-ip_class_in  :: IPClassifier(tcp or udp, icmp, -)
-ip_class_out :: IPClassifier(tcp or udp, icmp, -)
+ip_class_in  :: IPClassifier(tcp or udp, icmp type echo, -)
+ip_class_out :: IPClassifier(tcp or udp, icmp type echo-reply, -)
 
-// Filters for gateway ping interception
-ip_filter_in :: IPFilter(allow dst 10.0.0.1 and icmp type echo, allow all)
-ip_filter_out :: IPFilter(allow dst 100.0.0.1 and icmp type echo, allow all)
+
+ip_filter_in :: IPFilter(
+  allow dst 10.0.0.1 and icmp type echo,
+  allow tcp,
+  allow udp,
+  allow icmp,
+  deny all
+)
+
+ip_filter_out :: IPFilter(
+  allow dst 100.0.0.1 and icmp type echo,
+  allow tcp,
+  allow udp,
+  allow icmp,
+  deny all
+)
 
 // ARP Handling
 arp_in::ARPResponder(IN_ADDR)
@@ -63,8 +76,18 @@ aq_in::ARPQuerier(IN_ADDR)
 aq_out :: ARPQuerier(OUT_ADDR)
 
 // NAT Logic
-iprw   :: IPRewriter(pattern OUT_ADDR 1024-65535 - - 0 1, drop)
-icmprw :: ICMPPingRewriter(pattern OUT_ADDR 1024-65535 - - 0 1, drop)
+iprw :: IPRewriter(
+  pattern OUT_ADDR 1024-65535 - - 0 1,
+  pattern IN_ADDR  - - - 1 0
+)
+
+icmprw :: ICMPPingRewriter(
+  pattern OUT_ADDR 1024-65535 - - 0 1,
+  pattern IN_ADDR  - - - 1 0
+)
+
+iprw[2] -> Print("NAPT: TCP/UDP NAT FAILED") -> Discard
+icmprw[2] -> Print("NAPT: ICMP NAT FAILED") -> Discard
 
 
 // ======== USER (IN) → OUT ========
